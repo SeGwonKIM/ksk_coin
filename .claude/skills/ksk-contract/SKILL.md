@@ -56,10 +56,13 @@ renderHooks.push(function(){    // 매 500ms
 ### 건드리지 말 것 (F0·F1 소유)
 
 ```js
-coin, cash, issued, mined, blocks, blockTimer, price, prevPrice, hist, slip,
+coin, issued, mined, burned, blocks, blockTimer, price, prevPrice, hist, slip,
 demand, netHash, baseHash, counts, mode, staked, attests, attestTimer,
 slashed, fees, poolPaid, solo, peakPrice, spent, log, over
 ```
+
+**`cash` 는 없다.** 코인 단일 화폐로 전환하면서 원화를 없앴다 — `S.coin` 이 유일한 잔고다.
+`S.burned` 는 수수료·세금으로 영구 소각된 누적량이다.
 
 - `S.issued` = **세계 전체 발행량**, `S.mined` = **내가 받은 양**. 절대 섞지 않는다.
   이 둘을 한 변수로 겸했다가 지분이 4%→80% 로 폭주한 적이 있다 (`WHITEPAPER.md` §4.2).
@@ -74,8 +77,12 @@ re: { owned: [], listings: null },   // F2 부동산
 ```
 
 `load()` 가 `Object.assign(freshState(), 저장값)` 을 쓰므로, 없던 필드는 자동으로 초기값이 된다.
-**옛 저장값과 새 규칙이 섞이면 안 되는 변경**(발행 규칙·단위 변경)에서만 `SAVE_KEY` 를 올린다.
-지금은 `ksk_coin_v4` 다. 기능 추가만이면 올리지 않는다.
+**옛 저장값과 새 규칙이 섞이면 안 되는 변경에서는 반드시 `SAVE_KEY` 를 올린다** —
+금액 단위, 발행 규칙, 화폐 체계가 바뀔 때다. 지금은 `ksk_coin_v5` 다.
+기능 추가만이면 올리지 않는다.
+
+**실제로 물린 적이 있다.** 코인 단일 화폐로 바꿔 금액 스케일이 100만분의 1 이 됐는데
+키를 올리지 않아, 옛 저장값의 `coin: 42658` 이 42,658 KSK(426억원)로 읽힐 상태였다.
 
 ## 5. 쓸 수 있는 공용 함수
 
@@ -86,7 +93,12 @@ save()                // localStorage 저장 (실패해도 안전)
 won(v)                // 12,345    원 단위 (정수 반올림 + 천단위)
 ksk(v)                // 1.23억 / 4.5만 / 12.3 / 0.123
 kskFull(v)            // 123,456,789
-pw(v)                 // 시세 표기 (100 미만이면 소수 5자리)
+pw(v)                 // 가치 지수 표기
+refWon(v)             // 원화 참조 표시 (1 KSK = 100만원) — 이해용, 거래는 KSK 로만
+cost(baseKsk)         // 기본 KSK 가격 × 물가 배수 = 실제 지불액
+pay(amount, label)    // 코인을 쓴다. 수수료는 영구 소각. 잔액 부족이면 false
+receive(amount)       // 코인을 받는다. 수수료를 떼고 소각
+priceIdx()            // 물가 배수 (시세가 오르면 1 아래로 내려간다)
 clamp(v, a, b)
 gameYears()           // 세계 경과 연수 (블록 × 17.52 ÷ 8760)
 era()                 // 반감기 회차 0..24

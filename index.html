@@ -136,6 +136,14 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
 .gd .life>div.dead{background:var(--down)}
 #hhCats{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
 #hhList{max-height:420px;overflow-y:auto}
+#hhPlan{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin:8px 0}
+.room{border:1px solid var(--line);border-radius:6px;padding:6px}
+.room .rn{font-size:11px;color:var(--dim);margin-bottom:4px}
+.room .slots{display:grid;grid-template-columns:repeat(2,1fr);gap:4px}
+.slot{aspect-ratio:1;border:1px dashed #2b3440;border-radius:5px;display:flex;
+  align-items:center;justify-content:center;font-size:18px}
+.slot.on{border-style:solid;border-color:#2b6e39;background:#12200f}
+.slot.bad{border-color:var(--down);background:#2a1212}
 /* ==== [F4:살림살이] CSS 끝 ==== */
 /* ==== [F5:월정산] CSS 시작 ==== */
 #finTable{width:100%;border-collapse:collapse;font-size:12px;
@@ -175,7 +183,7 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
 
   <header>
     <h1>KSK <span style="color:var(--gold)">COIN</span></h1>
-    <div class="sub">진짜 SHA-256 작업증명으로 캐고, 실제 환율과 시세가 반영되는 가상경제 — 시뮬레이션입니다</div>
+    <div class="sub">휴대폰으로 캐는 지분증명 가상 생활경제 — KSK가 유일한 화폐입니다 · 시뮬레이션</div>
   </header>
 
   <div id="tabs" role="tablist"></div>
@@ -385,6 +393,10 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
       <div class="row"><span>살림 잔존가치</span><b id="hhV">—</b></div>
       <div class="row"><span>설치 장소</span><b id="hhPlace">보관함</b></div>
       <div class="btns"><select id="hhAt"></select></div>
+      <div class="row"><span>방 / 자리 (평형 기준)</span><b id="hhRooms">—</b></div>
+      <div class="row"><span>공간 인정률</span><b id="hhFit">—</b></div>
+      <div id="hhPlan"></div>
+      <div class="sub" id="hhPlanNote">—</div>
       <div id="hhCats"></div>
       <div id="hhList"></div>
       <div class="sub">가전은 전기를 먹고, 가구·인테리어는 등급을 올립니다.
@@ -599,7 +611,11 @@ const MONTH_HOURS  = 730;      // 게임 한 달 (8760 ÷ 12)
 // 그 전에 자산을 쌓아 임대·직업으로 넘어가는 아크가 된다.
 const START_SHARE  = 8e-8;     // 0.000008%
 const START_COIN   = 50;       // 채굴 시작 기본 지급 (5,000만원)
-const SAVE_KEY     = "ksk_coin_v4";
+// 저장 키를 v5 로 올렸다. 코인 단일 화폐로 전환하면서 **금액 스케일이 100만분의 1**
+// 이 됐다 — 옛 저장값의 `coin: 42658`(원화 시절)을 그대로 읽으면 42,658 KSK = 426억원
+// 이 된다. 키를 올리면 옛 데이터를 아예 읽지 않으므로 그 오염이 원천 차단된다.
+// 규칙: **금액 단위나 발행 규칙이 바뀌면 반드시 이 키를 올린다.**
+const SAVE_KEY     = "ksk_coin_v5";
 
 // 기기 자원을 최소로 쓰기 위한 예산.
 // 1단계(초기 분배 PoW)는 DUTY 프레임 중 한 번만, 그때도 hashMs() 만큼만 해시한다.
@@ -2048,22 +2064,22 @@ const HH_FIX_RATE  = 0.6;   // 고장난 품목 교체 비용 = 원가의 60%
 
 const GOODS = [
   // 가전 — 전기를 먹는다
-  { id:"fridge",  name:"양문형 냉장고", cat:"가전",     cost:1.2,  w:40,  grade:1, life:120 },
-  { id:"aircon",  name:"벽걸이 에어컨", cat:"가전",     cost:0.8,  w:450, grade:1, life:96  },
-  { id:"washer",  name:"드럼 세탁기",   cat:"가전",     cost:0.7,  w:30,  grade:1, life:108 },
-  { id:"tv",      name:"대형 TV",       cat:"가전",     cost:1.5,  w:60,  grade:2, life:84  },
-  { id:"pc",      name:"데스크톱 PC",   cat:"가전",     cost:1.3,  w:120, grade:1, life:60  },
+  { id:"fridge", icon:"🧊",  name:"양문형 냉장고", cat:"가전",     cost:1.2,  w:40,  grade:1, life:120 },
+  { id:"aircon", icon:"❄️",  name:"벽걸이 에어컨", cat:"가전",     cost:0.8,  w:450, grade:1, life:96  },
+  { id:"washer", icon:"🌀",  name:"드럼 세탁기",   cat:"가전",     cost:0.7,  w:30,  grade:1, life:108 },
+  { id:"tv", icon:"📺",      name:"대형 TV",       cat:"가전",     cost:1.5,  w:60,  grade:2, life:84  },
+  { id:"pc", icon:"💻",      name:"데스크톱 PC",   cat:"가전",     cost:1.3,  w:120, grade:1, life:60  },
   // 가구 — 전기 0, 등급 중간
-  { id:"bed",     name:"퀸 침대",       cat:"가구",     cost:0.6,  w:0,   grade:3, life:180 },
-  { id:"sofa",    name:"패브릭 소파",   cat:"가구",     cost:0.9,  w:0,   grade:4, life:144 },
-  { id:"table",   name:"원목 식탁",     cat:"가구",     cost:0.7,  w:0,   grade:3, life:180 },
-  { id:"closet",  name:"붙박이 옷장",   cat:"가구",     cost:1.1,  w:0,   grade:4, life:240 },
+  { id:"bed", icon:"🛏️",     name:"퀸 침대",       cat:"가구",     cost:0.6,  w:0,   grade:3, life:180 },
+  { id:"sofa", icon:"🛋️",    name:"패브릭 소파",   cat:"가구",     cost:0.9,  w:0,   grade:4, life:144 },
+  { id:"table", icon:"🍽️",   name:"원목 식탁",     cat:"가구",     cost:0.7,  w:0,   grade:3, life:180 },
+  { id:"closet", icon:"🚪",  name:"붙박이 옷장",   cat:"가구",     cost:1.1,  w:0,   grade:4, life:240 },
   // 인테리어 — 등급이 높다
-  { id:"curtain", name:"암막 커튼",     cat:"인테리어", cost:0.3,  w:0,   grade:2, life:96  },
-  { id:"light",   name:"간접 조명",     cat:"인테리어", cost:0.4,  w:15,  grade:3, life:120 },
-  { id:"bath",    name:"욕실 리모델링", cat:"인테리어", cost:3.5,  w:0,   grade:8, life:180 },
-  { id:"floor",   name:"원목 마루",     cat:"인테리어", cost:2.5,  w:0,   grade:7, life:240 },
-  { id:"kitchen", name:"주방 리모델링", cat:"인테리어", cost:5.0,  w:0,   grade:9, life:180 }
+  { id:"curtain", icon:"🪟", name:"암막 커튼",     cat:"인테리어", cost:0.3,  w:0,   grade:2, life:96  },
+  { id:"light", icon:"💡",   name:"간접 조명",     cat:"인테리어", cost:0.4,  w:15,  grade:3, life:120 },
+  { id:"bath", icon:"🛁",    name:"욕실 리모델링", cat:"인테리어", cost:3.5,  w:0,   grade:8, life:180 },
+  { id:"floor", icon:"🪵",   name:"원목 마루",     cat:"인테리어", cost:2.5,  w:0,   grade:7, life:240 },
+  { id:"kitchen", icon:"🍳", name:"주방 리모델링", cat:"인테리어", cost:5.0,  w:0,   grade:9, life:180 }
 ];
 
 const goodFind = id => GOODS.find(function(g){ return g.id === id; });
@@ -2084,7 +2100,53 @@ function hhValue(){   // 잔존가치 — 남은 수명 비율만큼
     return a + hhOf(g.id).n * g.cost * hhLifeLeft(g);
   }, 0);
 }
-const hhGradeMul   = () => 1 + Math.min(hhGrade(), HH_GRADE_CAP)/HH_GRADE_CAP * 0.5;
+// ── F4.6 방·공간 배치 ────────────────────────────────────
+// 평형이 방 수를 정하고, 방마다 4칸씩 자리가 있다.
+// **슬롯을 넘는 물건은 놓을 자리가 없어 등급이 인정되지 않는다** —
+// 그래서 "더 큰 집을 사야 한다"는 동기가 F2 와 이어진다.
+//   원룸 8평 → 1방 4칸 (품목 14개면 29% 만 인정) · 수원 아파트 32평 → 4방 16칸 (100%)
+const ROOM_SLOTS = 4;
+const PY_PER_ROOM = 8;
+
+function hhRooms(){
+  const e = hhAtEstate();
+  return e ? Math.max(1, Math.floor(e.py / PY_PER_ROOM)) : 0;
+}
+const hhSlots = () => hhRooms() * ROOM_SLOTS;
+const hhCount = () => GOODS.reduce(function(a,g){ return a + hhOf(g.id).n; }, 0);
+
+// 공간 인정률. 보관함(방 0)에서는 제약을 적용하지 않는다 —
+// 아직 집이 없는 사람에게 공간 부족을 탓할 수는 없다.
+function hhFit(){
+  const sl = hhSlots();
+  if(sl === 0) return 1;
+  const c = hhCount();
+  return c === 0 ? 1 : Math.min(1, sl / c);
+}
+
+// 자동 배치 — 품목을 카테고리 순서로 방에 채운다.
+// 수동 드래그는 과하다. 어디에 무엇이 들어갔는지 보여 주고,
+// 자리가 부족하다는 사실이 눈에 보이는 것이 이 기능의 목적이다.
+function hhLayout(){
+  const rooms = hhRooms();
+  if(rooms === 0) return [];
+  const grid = [];
+  for(let i=0;i<rooms;i++) grid.push([]);
+  let idx = 0;
+  GOODS.forEach(function(g){
+    const it = hhOf(g.id);
+    for(let k=0;k<it.n;k++){
+      const room = Math.floor(idx / ROOM_SLOTS);
+      if(room < rooms) grid[room].push({ g:g, broken: it.age >= g.life });
+      idx++;
+    }
+  });
+  return grid;
+}
+const hhOverflow = () => Math.max(0, hhCount() - hhSlots());
+
+// 등급에 공간 인정률을 곱한다
+const hhGradeMul   = () => 1 + Math.min(hhGrade()*hhFit(), HH_GRADE_CAP)/HH_GRADE_CAP * 0.5;
 const hhElecPerSec = () => cost(elecRate() * (hhWatts()/1000));
 
 // 살림을 놓은 건물. 주거용이고 아직 보유 중이어야 한다.
@@ -2155,7 +2217,8 @@ function renderHouse(){
   const w = hhWatts();
   $("hhW").textContent = w+"W · -"+ksk(hhElecPerSec())+" KSK/초";
   $("hhW").className   = w > 0 ? "down" : "dimtxt";
-  $("hhG").textContent = hhGrade()+"점 · ×"+hhGradeMul().toFixed(3);
+  $("hhG").textContent = hhGrade()+"점 → 인정 "+(hhGrade()*hhFit()).toFixed(0)+
+                         "점 · ×"+hhGradeMul().toFixed(3);
   $("hhG").className   = hhGrade() > 0 ? "up" : "dimtxt";
   $("hhV").textContent = ksk(hhValue())+" KSK";
 
@@ -2180,6 +2243,37 @@ function renderHouse(){
   if(sel.value !== (S.hh.placedAt || "")) sel.value = S.hh.placedAt || "";
   sel.disabled = homes.length === 0;
 
+  // F4.6 평면도
+  const rooms = hhRooms(), slots = hhSlots(), cnt = hhCount(), fit = hhFit();
+  $("hhRooms").textContent = rooms
+    ? rooms+"방 · "+slots+"자리 (물건 "+cnt+"개)"
+    : "집이 없습니다 (보관함)";
+  $("hhRooms").className = rooms ? "" : "dimtxt";
+  $("hhFit").textContent = rooms ? (fit*100).toFixed(0)+"%" : "제약 없음";
+  $("hhFit").className   = fit >= 1 ? "up" : "down";
+
+  const layout = hhLayout();
+  $("hhPlan").innerHTML = layout.map(function(items, i){
+    let cells = "";
+    for(let k=0;k<ROOM_SLOTS;k++){
+      const it = items[k];
+      cells += it
+        ? '<div class="slot on'+(it.broken?" bad":"")+'" title="'+it.g.name+
+          (it.broken?" (고장)":"")+'">'+it.g.icon+'</div>'
+        : '<div class="slot"></div>';
+    }
+    return '<div class="room"><div class="rn">'+(i+1)+'번 방</div>'+
+           '<div class="slots">'+cells+'</div></div>';
+  }).join("");
+
+  const over = hhOverflow();
+  $("hhPlanNote").innerHTML = !rooms
+    ? "주거용 건물을 사서 살림을 설치하면 평면도가 나타납니다. 보관함에서는 공간 제약이 없습니다."
+    : over > 0
+      ? "<b class=\"down\">자리가 "+over+"개 부족합니다</b> — 넘는 물건은 놓을 곳이 없어 "+
+        "인테리어 등급이 "+(fit*100).toFixed(0)+"% 만 인정됩니다. 더 큰 집이 필요합니다."
+      : "자리가 넉넉합니다 — 인테리어 등급이 전부 인정됩니다.";
+
   $("hhCats").innerHTML = ["전체","가전","가구","인테리어"].map(function(c){
     return '<button class="sm'+(c===hhCat?"":" ghost")+'" data-hhcat="'+c+'">'+c+'</button>';
   }).join("");
@@ -2201,7 +2295,7 @@ function renderHouse(){
         : '<button class="buy sm" data-hhbuy="'+g.id+'"'+
           (S.coin < g.cost ? " disabled" : "")+'>구매</button>';
       return '<div class="'+cls+'"><div>'+
-        '<div class="nm">'+g.name+
+        '<div class="nm">'+g.icon+' '+g.name+
           (it.n ? ' <span class="dimtxt">×'+it.n+'</span>' : '')+
           (broken ? ' <span class="down">고장</span>' : '')+'</div>'+
         '<div class="meta">'+g.cat+' · '+ksk(g.cost)+' KSK · 등급 +'+g.grade+' · '+
