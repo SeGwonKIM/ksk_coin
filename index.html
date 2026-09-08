@@ -157,6 +157,17 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
 #jobList,#certList{max-height:300px;overflow-y:auto}
 .warn{color:var(--gold)}   /* 진행 중 표시 — 전역에 없어서 여기서 정의한다 */
 /* ==== [F8:직업] CSS 끝 ==== */
+/* ==== [F9:추천인] CSS 시작 ==== */
+.inv{border:1px solid var(--line);border-radius:6px;padding:8px 9px;margin-bottom:6px}
+.inv.done{border-color:#2b6e39}
+.inv .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.inv .nm{font-weight:600;font-size:13px}
+.inv .meta{color:var(--dim);font-size:11px;margin-top:2px;font-variant-numeric:tabular-nums}
+.inv .prog{height:5px;background:#0b0f14;border-radius:3px;overflow:hidden;margin-top:5px}
+.inv .prog>div{height:100%;background:var(--gold)}
+.inv .prog>div.full{background:var(--up)}
+#invList{max-height:320px;overflow-y:auto}
+/* ==== [F9:추천인] CSS 끝 ==== */
 </style>
 </head>
 <body>
@@ -380,6 +391,21 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
         <b>부동산 중개사</b> 자격은 부동산 중개수수료를 면제해 줍니다.</div>
     </div>
     <!-- ==== [F8:직업] 패널 끝 ==== -->
+    <!-- ==== [F9:추천인] 패널 시작 ==== -->
+    <div class="panel" data-tab="job">
+      <h2>추천인 — 초대한 사람이 100 KSK를 모으면 10 KSK</h2>
+      <div class="row"><span>초대한 사람</span><b id="invCount">0명</b></div>
+      <div class="row"><span>받은 추천 보상</span><b id="invPaid" class="up">0 KSK</b></div>
+      <div class="row"><span>다음 초대까지</span><b id="invNext">가능</b></div>
+      <div class="btns"><button id="invBtn" class="buy sm">친구 초대</button></div>
+      <div id="invList"></div>
+      <div class="sub">초대한 사람도 폰으로 캡니다 — 기본 지급 50 KSK로 시작해
+        스스로 모으고, 누적이 <b>100 KSK</b>에 닿는 순간 추천인에게 <b>10 KSK</b>가 지급됩니다
+        (한 사람당 한 번). 보상은 발행량에서 나오므로 총 상한 50억 KSK를 넘지 않습니다.
+        초대는 <b>게임 한 달에 한 명</b>까지 — 전화번호부가 무한하지 않습니다.
+        이 세계의 다른 참여자는 시뮬레이션된 값이고 실제 사용자가 아닙니다.</div>
+    </div>
+    <!-- ==== [F9:추천인] 패널 끝 ==== -->
 
   </div>
 </div>
@@ -398,7 +424,7 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
     <p>이 세계의 시간은 <b>1초가 1시간</b>으로 흐릅니다. 50년을 다 캐려면 약 5일이 걸립니다.</p>
     <div class="notice">⚠ 시뮬레이션입니다. 실제 블록체인에 발행하지 않고, 실제 화폐가 드나들지 않습니다.
       KSK는 현실 가치가 없는 숫자입니다. 투자 조언이 아닙니다.</div>
-    <div class="row"><span>초기 지급</span><b>5,000만 KSK</b></div>
+    <div class="row"><span>기본 지급</span><b>50 KSK (5,000만원)</b></div>
     <div class="row"><span>총 발행 상한</span><b>50억 KSK</b></div>
     <div class="row"><span>총 발행 기간</span><b>50년 (반감기 25회 · 2년마다)</b></div>
     <div class="row"><span>초기 블록 보상</span><b>250만 KSK · 블록 17.5초</b></div>
@@ -521,8 +547,13 @@ const WON_PER_KSK  = 1000000; // 1 KSK 의 원화 참조 가치 (표시용)
 const KSK_MIN      = 0.000001; // 최소 단위 = 1원
 const PLAN_COST    = 0.05;     // 폰 1대당 월 통신비 (5만원)
 const MONTH_HOURS  = 730;      // 게임 한 달 (8760 ÷ 12)
-const START_SHARE  = 2.4e-8;   // 폰 한 대의 실제 채굴 풀 지분 (0.0000024%)
-const START_COIN   = 5;        // 초기 지급 (500만원)
+// 폰 한 대의 채굴 풀 지분. 2.4e-8(0.0000024%)로 뒀더니 50년 총 채굴이 120 KSK 뿐이라
+// 알바 월급 누적(720 KSK)의 1/6 밖에 안 됐다 — 채굴 게임인데 채굴이 부수 수입이 됐다.
+// 반감기 때문에 채굴은 초반에 몰리고 월급·임대는 600개월 내내 안 줄어드는 구조 탓이다.
+// 8e-8 로 올려 50년 총 채굴을 400 KSK(4억원)로 맞췄다. 12년차에 월 0.13 KSK 로 떨어지므로
+// 그 전에 자산을 쌓아 임대·직업으로 넘어가는 아크가 된다.
+const START_SHARE  = 8e-8;     // 0.000008%
+const START_COIN   = 50;       // 채굴 시작 기본 지급 (5,000만원)
 const SAVE_KEY     = "ksk_coin_v4";
 
 // 기기 자원을 최소로 쓰기 위한 예산.
@@ -581,6 +612,7 @@ function freshState(){
     attestTimer: 0,
     slashed: 0,           // 미가동 누출로 잃은 양
     fees: 0,              // 누적 수수료 (0.01%)
+    ref: { invited: [], lastAt: -99 },   // F9 추천인 — invited:[{id,coin,rate,paid}], lastAt: 마지막 초대 개월
     fin: { done: 0, coin0: null, last: null, living: "frugal" },   // F5 월정산·생활비
     job: { id: null, months: 0, certs: [], edu: 0, study: null, agency: false },   // F8 직업
     hh: { items: {}, placedAt: null },   // F4 살림살이 — items: {품목id:{n:개수, age:경과 게임개월}}
@@ -648,7 +680,9 @@ const netStake   = () => Math.max(NET_STAKE0, S.issued * STAKE_RATIO);
 const stakeShare = () => S.staked > 0 ? S.staked / (S.staked + netStake()) : 0;
 const seats      = () => Math.floor(S.staked / MIN_STAKE);
 const myShare    = () => S.mode === "pos" ? stakeShare() : share();
-const revPerSec  = () => myShare() * reward() * S.price / TARGET_SEC;
+// 코인이 유일한 화폐이므로 수령은 KSK 그대로다 — 시세를 곱하면 안 된다
+// (원화 시절 공식 `× S.price` 가 남아 있었다).
+const revPerSec  = () => myShare() * reward() / TARGET_SEC;
 
 // 검증자 정산 — 기기가 하는 일은 12초에 서명(해시) 한 번뿐이다.
 // 자원을 거의 쓰지 않는데도 보안이 성립하는 이유는, 부정하면 예치한 스테이크를
@@ -1354,10 +1388,11 @@ const BROKER  = 0.005;   // 중개수수료 0.5% — 중개사 자격이 있으�
 // 다만 **생활비 대비 절대 배율은 압축**했다 — 현실에서 아파트는 월 생활비의 500~1,000배라
 // 그대로 담으면 50년 게임에서 한 채 사고 끝난다. 환산은 1억원 = 500만 기본 KSK.
 // 실시간 시세 연동은 백서 §9 대로 하지 않는다. 이 값은 고정 참고치다.
-// 1억원 = 5 KSK. 1 KSK = 100만원이니 실제로는 1억원 = 100 KSK 여야 하지만,
-// 그러면 관악우성(11.5억 = 1,150 KSK)이 50년 총 획득(약 120 KSK)을 훌쩍 넘어 못 산다.
-// 그래서 **부동산만 20배 압축**했다. 부동산끼리의 실제 비율은 그대로 지킨다.
-const EOK = 5;
+// 1억원 = 20 KSK. 1 KSK = 100만원이니 실제로는 1억원 = 100 KSK 여야 하지만,
+// 그러면 50년 총 채굴(400 KSK)로 관악우성(1,150 KSK) 한 채도 못 산다.
+// 그래서 **부동산만 5배 압축**했다. 부동산끼리의 실제 비율은 그대로 지킨다.
+// 이 값에서 타워팰리스(780 KSK)는 총 채굴의 195% — 임대 재투자와 직업이 필요한 장기 목표다.
+const EOK = 20;
 const ESTATES = [
   { id:"oneroom",   name:"원룸",              area:"부산 사하",   use:"주거",   py:8,
     real:0.8,  rentPct:0.0165, kw:0.3, cool:1.15 },
@@ -1940,7 +1975,9 @@ function settle(){
 // 지금 이 순간의 순현금흐름(원/초). 모든 층의 요율을 합친다.
 function netFlowPerSec(){
   let v = 0;
-  if(typeof payNow === "function" && S.job && S.job.id) v += payNow()/MONTH_HOURS;
+  // 채굴/검증 수령 — 이걸 빼먹으면 흑자인데도 파산 회생이 발동해 자산을 팔아 버린다
+  if(M.on && S.baseHash) v += revPerSec();
+  if(typeof payNow === "function" && S.job && S.job.id) v += jobPayPerSec();
   if(typeof estNetRentPerSec  === "function") v += estNetRentPerSec();
   if(typeof hhRentBonusPerSec === "function") v += hhRentBonusPerSec();
   if(M.on) v -= costPerSec() * (typeof coolFactor === "function" ? coolFactor() : 1);
@@ -2262,6 +2299,95 @@ document.addEventListener("click", function(ev){
   if(b.id === "jAgency") openAgency();
 });
 /* ==== [F8:직업] JS 끝 ==== */
+
+/* ==== [F9:추천인] JS 시작 ==== */
+// F9 — 추천인 제도. 한 명을 초대하고, 그 사람의 누적 코인이 100 KSK 에 닿는 순간
+// 추천인에게 10 KSK 를 지급한다 (한 사람당 한 번).
+//
+// 이 세계에는 실제 다른 사용자가 없다. 초대한 사람은 **시뮬레이션된 참여자**다 —
+// 나와 같은 폰 채굴자로 보고, 기본 지급 50 KSK 로 시작해 자기 속도로 모은다.
+// 실제 사람 이름을 만들지 않고 '초대 #1' 로만 표기한다 (오해를 만들지 않기 위해).
+//
+// 보상 재원은 **발행량**이다. S.issued 에 더해 총 상한 50억 KSK 를 넘지 않게 막는다.
+const REF_TARGET   = 100;   // 초대한 사람의 누적 목표 (KSK)
+const REF_BONUS    = 10;    // 목표 달성 시 추천인이 받는 양 (KSK)
+const REF_COOLDOWN = 1;     // 초대 간격 (게임 개월)
+
+// 초대한 사람의 채굴 속도 — 내 초기 수령률을 기준으로 ±40% 흔든다
+function refRate(){
+  const base = START_SHARE * REWARD0 / TARGET_SEC;   // 초당 KSK (반감기 전 기준)
+  return base * (0.6 + Math.random()*0.8);
+}
+
+const refCanInvite = () => worldMonths() - S.ref.lastAt >= REF_COOLDOWN;
+const refPaidTotal = () => S.ref.invited.filter(function(v){ return v.paid; }).length * REF_BONUS;
+
+function invite(){
+  if(!refCanInvite()) return;
+  const id = S.ref.invited.length + 1;
+  S.ref.invited.push({ id:id, coin:START_COIN, rate:refRate(), paid:false });
+  S.ref.lastAt = worldMonths();
+  log("<b>초대 #"+id+"</b> 가입 — 기본 지급 "+ksk(START_COIN)+" KSK 로 시작합니다. "+
+      "누적 "+REF_TARGET+" KSK 에 닿으면 추천 보상 "+REF_BONUS+" KSK");
+  save(); renderRef();
+}
+
+tickHooks.push(function(dt){
+  if(!S.ref.invited.length) return;
+  for(let i=0; i<S.ref.invited.length; i++){
+    const v = S.ref.invited[i];
+    if(v.paid) { v.coin += v.rate * dt; continue; }   // 보상 뒤에도 계속 모은다
+    v.coin += v.rate * dt;
+    if(v.coin >= REF_TARGET){
+      v.paid = true;
+      // 재원은 발행량. 상한을 넘지 않게 자른다.
+      const bonus = Math.min(REF_BONUS, CAP - S.issued);
+      if(bonus > 0){
+        S.coin += bonus; S.mined += bonus; S.issued += bonus;
+        log("<b>추천 보상 +"+ksk(bonus)+" KSK</b> — 초대 #"+v.id+
+            " 의 누적이 "+REF_TARGET+" KSK 에 닿았습니다");
+      }else{
+        log("초대 #"+v.id+" 가 목표에 닿았지만 발행 상한에 걸려 보상이 없습니다");
+      }
+      save();
+    }
+  }
+});
+
+function renderRef(){
+  if(!$("invList")) return;
+  $("invCount").textContent = S.ref.invited.length+"명";
+  $("invPaid").textContent  = ksk(refPaidTotal())+" KSK";
+  $("invPaid").className    = refPaidTotal() > 0 ? "up" : "dimtxt";
+  const left = REF_COOLDOWN - (worldMonths() - S.ref.lastAt);
+  $("invNext").textContent  = refCanInvite() ? "가능"
+    : (left*MONTH_HOURS).toFixed(0)+"초 뒤";
+  $("invNext").className    = refCanInvite() ? "up" : "dimtxt";
+  $("invBtn").disabled      = !refCanInvite();
+
+  $("invList").innerHTML = S.ref.invited.length
+    ? S.ref.invited.map(function(v){
+        const pct = Math.min(100, v.coin/REF_TARGET*100);
+        const eta = v.paid ? null : (REF_TARGET - v.coin) / v.rate;
+        return '<div class="inv'+(v.paid?" done":"")+'"><div class="top"><div>'+
+          '<div class="nm">초대 #'+v.id+
+            (v.paid ? ' <span class="up">보상 지급 완료</span>' : '')+'</div>'+
+          '<div class="meta">누적 '+ksk(v.coin)+' / '+REF_TARGET+' KSK · '+
+            '속도 '+v.rate.toFixed(6)+' KSK/초'+
+            (eta !== null && isFinite(eta) ? ' · 약 '+Math.ceil(eta)+'초 뒤 달성' : '')+
+          '</div>'+
+          '<div class="prog"><div class="'+(pct>=100?"full":"")+
+            '" style="width:'+pct.toFixed(1)+'%"></div></div>'+
+          '</div></div></div>';
+      }).join("")
+    : '<div class="sub">아직 초대한 사람이 없습니다</div>';
+}
+renderHooks.push(renderRef);
+
+document.addEventListener("click", function(ev){
+  if(ev.target.closest("#invBtn")) invite();
+});
+/* ==== [F9:추천인] JS 끝 ==== */
 
 let last = performance.now();
 setInterval(function(){
