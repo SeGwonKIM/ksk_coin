@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KSK COIN — 채굴과 가상경제 시뮬레이터</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root{
+  --bg:#0d1117; --panel:#161b22; --line:#26303d; --txt:#e6edf3; --dim:#8b949e;
+  --up:#3fb950; --down:#f85149; --gold:#e3b341;
+}
+body{
+  background:var(--bg); color:var(--txt); min-height:100vh;
+  font-family:"Segoe UI","Malgun Gothic",system-ui,sans-serif;
+  font-size:14px; line-height:1.5; padding:14px;
+}
+.wrap{max-width:1080px;margin:0 auto}
+h1{font-size:22px;letter-spacing:1px}
+.sub{color:var(--dim);font-size:12px;margin-top:2px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;margin-top:12px}
+.panel h2{font-size:13px;color:var(--dim);font-weight:600;letter-spacing:.5px;margin-bottom:10px}
+
+#hud{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:12px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 10px}
+.stat b{display:block;font-size:10px;color:var(--dim);font-weight:600}
+.stat i{display:block;font-style:normal;font-size:17px;font-variant-numeric:tabular-nums;margin-top:3px}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+.grid .panel{margin-top:0}
+.row{display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-variant-numeric:tabular-nums}
+.row span:first-child{color:var(--dim)}
+hr{border:0;border-top:1px solid var(--line);margin:9px 0}
+
+button{font:inherit;font-weight:600;color:#fff;background:#1f6feb;border:0;border-radius:6px;
+  padding:8px 14px;cursor:pointer}
+button:hover{background:#388bfd}
+button:disabled{background:#21262d;color:#484f58;cursor:not-allowed}
+button.ghost{background:#21262d;border:1px solid var(--line);color:var(--txt)}
+button.ghost:hover{background:#2d333b}
+button.sell{background:#a13c33}button.sell:hover{background:#c04a3f}
+button.buy{background:#2b6e39}button.buy:hover{background:#378a48}
+button.sm{padding:5px 10px;font-size:12px}
+button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+
+#hashline{font-family:Consolas,monospace;font-size:11px;color:var(--gold);
+  background:#0b0f14;border:1px solid var(--line);border-radius:5px;padding:6px 8px;
+  margin-top:8px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.bar{height:6px;background:#0b0f14;border-radius:3px;overflow:hidden;margin-top:8px}
+.bar>div{height:100%;background:var(--gold);width:0}
+
+#chart{width:100%;height:70px;display:block;background:#0b0f14;border-radius:5px;margin:8px 0}
+.price{font-size:26px;font-variant-numeric:tabular-nums}
+.up{color:var(--up)}.down{color:var(--down)}.dimtxt{color:var(--dim)}
+
+.rig{border:1px solid var(--line);border-radius:6px;padding:9px;margin-bottom:8px}
+.rig .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.rig .nm{font-weight:600}
+.rig .meta,.rig .be{color:var(--dim);font-size:12px;margin-top:2px;font-variant-numeric:tabular-nums}
+
+#log{font-size:12px;max-height:210px;overflow-y:auto;font-variant-numeric:tabular-nums}
+#log div{padding:2px 0;border-bottom:1px solid #1c2129;color:var(--dim)}
+#log div b{color:var(--txt);font-weight:600}
+
+.ov{position:fixed;inset:0;background:rgba(8,11,15,.94);display:flex;align-items:center;
+  justify-content:center;padding:18px;z-index:20;overflow-y:auto}
+.ov.hide{display:none}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  padding:22px;max-width:520px;width:100%}
+.card h1{margin-bottom:8px}
+.card p{color:var(--dim);margin:9px 0;font-size:13px}
+.notice{background:#1c1607;border:1px solid #4a3a0c;border-radius:6px;padding:9px 11px;
+  font-size:12px;color:#e3b341;margin:12px 0}
+.card .row{font-size:13px}
+#fxState{font-size:12px;color:var(--dim);margin-top:10px}
+
+@media(max-width:860px){
+  #hud{grid-template-columns:repeat(4,1fr)}
+  .grid{grid-template-columns:1fr}
+}
+@media(max-width:480px){
+  body{padding:9px;font-size:13px}
+  #hud{grid-template-columns:repeat(2,1fr)}
+  .stat i{font-size:15px}
+  /* 손가락으로 누를 수 있는 크기 */
+  button{min-height:46px;padding:10px 14px}
+  button.sm{min-height:40px;font-size:13px}
+  .btns{gap:8px}
+  .btns button{flex:1 1 auto}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>KSK <span style="color:var(--gold)">COIN</span></h1>
+    <div class="sub">진짜 SHA-256 작업증명으로 캐고, 실제 환율과 시세가 반영되는 가상경제 — 시뮬레이션입니다</div>
+  </header>
+
+  <div id="hud">
+    <div class="stat"><b>보유 KSK</b><i id="sCoin">0</i></div>
+    <div class="stat"><b>현금 (원)</b><i id="sCash">0</i></div>
+    <div class="stat"><b>KSK 시세</b><i id="sPrice">0</i></div>
+    <div class="stat"><b>해시레이트</b><i id="sHash">0</i></div>
+    <div class="stat"><b>내 지분</b><i id="sShare">0%</i></div>
+    <div class="stat"><b>발행 진행</b><i id="sSupply">0%</i></div>
+    <div class="stat"><b>세계 경과</b><i id="sYear">0년</i></div>
+  </div>
+
+  <div class="panel">
+    <h2>세계 지표</h2>
+    <div class="grid">
+      <div>
+        <div class="row"><span>전기요금 단가</span><b id="rElec">—</b></div>
+        <div class="row"><span>통신비 (대당 월)</span><b id="rPlan">—</b></div>
+        <div class="sub">폰은 4~18W라 전기는 미미하고, 대수만큼 내는 통신비가 주된 비용이다</div>
+      </div>
+      <div>
+        <div class="row"><span>수요 지수</span><b id="rSent">—</b></div>
+        <div class="row"><span>네트워크 규모</span><b id="rNet">—</b></div>
+        <div class="sub">세계가 늙을수록 채택이 오르고, 채굴이 남으면 채굴자가 몰려 난이도가 오른다</div>
+      </div>
+    </div>
+    <div id="fxState">외부 연동 없음 — 이 세계는 스스로 돌아갑니다 (네트워크 요청 0건)</div>
+  </div>
+
+  <div class="grid" style="margin-top:12px">
+
+    <div class="panel">
+      <h2>채굴</h2>
+      <div class="row"><span>네트워크 난이도</span><b id="mDiff">—</b></div>
+      <div class="row"><span>시도한 논스</span><b id="mNonce">0</b></div>
+      <div class="row"><span>세계 블록 / 현재 보상</span><b id="mBlocks">0 / 250만 KSK</b></div>
+      <div class="row"><span>다음 반감기까지</span><b id="mHalve">에라 1/25 · 1,000 블록</b></div>
+      <div class="row"><span>풀 누적 수령 / 직접 발견</span><b id="mPool">0 KSK / 0회</b></div>
+      <hr>
+      <div class="row"><span>초당 비용 (전기+통신)</span><b id="mCost" class="down">—</b></div>
+      <div class="row"><span>초당 기대수익</span><b id="mRev" class="up">—</b></div>
+      <div class="row"><span>초당 손익</span><b id="mNet">—</b></div>
+      <div id="hashline">대기 중…</div>
+      <div class="bar"><div id="mBar"></div></div>
+      <div class="btns">
+        <button id="bMine">채굴 시작</button>
+        <button id="bReset" class="ghost sm">초기화</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>시장</h2>
+      <div class="price"><span id="kPrice">0</span> <span style="font-size:14px" class="dimtxt">원</span>
+        <span id="kChg" style="font-size:14px"></span></div>
+      <canvas id="chart"></canvas>
+      <div class="row"><span>기준가 × 희소성 × 심리</span><b id="kFair">—</b></div>
+      <div class="row"><span>원가하한 (전기요금 기준)</span><b id="kFloor">—</b></div>
+      <div class="row"><span>보유 KSK 평가액</span><b id="kValue">—</b></div>
+      <div class="btns">
+        <button class="sell sm" data-sell="0.1">10% 매도</button>
+        <button class="sell sm" data-sell="1">전량 매도</button>
+        <button class="buy sm" data-buy="0.1">현금 10% 매수</button>
+      </div>
+      <div class="sub">팔면 시세가 눌리고, 사면 밀려 올라갑니다 (슬리피지)</div>
+    </div>
+
+    <div class="panel">
+      <h2>채굴 장비</h2>
+      <div id="rigs"></div>
+      <div class="sub">손익분기 시세가 현재 시세보다 높으면 그 장비는 지금 적자입니다</div>
+    </div>
+
+    <div class="panel">
+      <h2>원장</h2>
+      <div id="log"></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="ov" id="ovStart">
+  <div class="card">
+    <h1>KSK <span style="color:var(--gold)">COIN</span></h1>
+    <p>브라우저가 실제로 SHA-256 해시를 돌려 목표값 이하의 논스를 찾습니다. 가짜 진행바가 아니라
+       진짜 계산이고, 블록이 나오는 순간은 계산의 결과입니다.</p>
+    <p>채굴 장비는 <b>휴대폰</b>입니다. 쓰던 구형 폰 한 대로 시작해 <b>채굴 풀</b>에 참여하고,
+       폰을 늘리거나 좋은 폰으로 바꿔 지분을 키웁니다. 비용은 전기가 아니라 <b>대당 통신비</b>입니다.</p>
+    <p>이 세계의 시간은 <b>1초가 1시간</b>으로 흐릅니다. 50년을 다 캐려면 약 5일이 걸립니다.</p>
+    <div class="notice">⚠ 시뮬레이션입니다. 실제 블록체인에 발행하지 않고, 실제 화폐가 드나들지 않습니다.
+      KSK와 게임 내 원화는 현실 가치가 없는 숫자입니다. 투자 조언이 아닙니다.</div>
+    <div class="row"><span>시작 자금</span><b>500,000원</b></div>
+    <div class="row"><span>총 발행 상한</span><b>50억 KSK</b></div>
+    <div class="row"><span>총 발행 기간</span><b>50년 (반감기 25회 · 2년마다)</b></div>
+    <div class="row"><span>초기 블록 보상</span><b>250만 KSK · 블록 17.5초</b></div>
+    <div class="row"><span>시작 시세</span><b>0.01원 (1원 = 100 KSK)</b></div>
+    <div class="row"><span>시작 지분 / 방식</span><b>4% · 채굴 풀 (연속 지급)</b></div>
+    <p style="margin-top:12px">외부 연동이 없어 인터넷 없이도 돌아갑니다. 여러분의 PC나 휴대폰이
+       직접 해시를 돌립니다 — 시작하면 이 기기의 속도를 2~3초 재고 그에 맞춰 난이도를 정하므로,
+       느린 기기에서도 수익 속도가 비슷합니다. 휴대폰은 화면이 꺼지면 채굴이 멈추고
+       돌아오면 자동으로 재개합니다.</p>
+    <button id="bStart" style="width:100%">시작하기</button>
+  </div>
+</div>
+
+<div class="ov hide" id="ovEnd">
+  <div class="card">
+    <h1 id="eTitle">—</h1>
+    <p id="eDesc">—</p>
+    <div id="eStats"></div>
+    <button id="bAgain" style="width:100%;margin-top:14px">다시 시작</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ─────────────────────────────────────────────────────────
+   1. SHA-256 — 순수 JS 동기 구현
+   crypto.subtle.digest 는 비동기라 논스마다 await 하면 수십 배 느려지고,
+   file:// 에서 보안 컨텍스트 문제가 생길 수 있어 직접 구현한다.
+   mode 0 → 해시 앞 32비트만(채굴 판정용, 빠름) / mode 1 → 64자리 hex(표시용)
+   ───────────────────────────────────────────────────────── */
+const SHA_K = new Uint32Array([
+0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2]);
+
+const _W = new Uint32Array(64);
+const _B = new Uint8Array(256);
+
+function sha256(str, mode){
+  // UTF-8 인코딩 (블록 헤더는 ASCII 라 1바이트 경로가 대부분)
+  let n = 0;
+  for(let i=0;i<str.length;i++){
+    const c = str.charCodeAt(i);
+    if(c < 0x80) _B[n++] = c;
+    else if(c < 0x800){ _B[n++] = 0xc0|(c>>6); _B[n++] = 0x80|(c&63); }
+    else { _B[n++] = 0xe0|(c>>12); _B[n++] = 0x80|((c>>6)&63); _B[n++] = 0x80|(c&63); }
+  }
+  const bitLen = n * 8;
+  _B[n++] = 0x80;
+  while(n % 64 !== 56) _B[n++] = 0;
+  _B[n++]=0; _B[n++]=0; _B[n++]=0; _B[n++]=0;
+  _B[n++]=(bitLen>>>24)&255; _B[n++]=(bitLen>>>16)&255;
+  _B[n++]=(bitLen>>>8)&255;  _B[n++]=bitLen&255;
+
+  let h0=0x6a09e667,h1=0xbb67ae85,h2=0x3c6ef372,h3=0xa54ff53a,
+      h4=0x510e527f,h5=0x9b05688c,h6=0x1f83d9ab,h7=0x5be0cd19;
+
+  for(let off=0; off<n; off+=64){
+    for(let i=0;i<16;i++){
+      const p = off + i*4;
+      _W[i] = (_B[p]<<24)|(_B[p+1]<<16)|(_B[p+2]<<8)|_B[p+3];
+    }
+    for(let i=16;i<64;i++){
+      const x=_W[i-15], y=_W[i-2];
+      const s0 = ((x>>>7)|(x<<25)) ^ ((x>>>18)|(x<<14)) ^ (x>>>3);
+      const s1 = ((y>>>17)|(y<<15)) ^ ((y>>>19)|(y<<13)) ^ (y>>>10);
+      _W[i] = (_W[i-16] + s0 + _W[i-7] + s1) | 0;
+    }
+    let a=h0,b=h1,c=h2,d=h3,e=h4,f=h5,g=h6,h=h7;
+    for(let i=0;i<64;i++){
+      const S1 = ((e>>>6)|(e<<26)) ^ ((e>>>11)|(e<<21)) ^ ((e>>>25)|(e<<7));
+      const t1 = (h + S1 + ((e&f)^(~e&g)) + SHA_K[i] + _W[i]) | 0;
+      const S0 = ((a>>>2)|(a<<30)) ^ ((a>>>13)|(a<<19)) ^ ((a>>>22)|(a<<10));
+      const t2 = (S0 + ((a&b)^(a&c)^(b&c))) | 0;
+      h=g; g=f; f=e; e=(d+t1)|0; d=c; c=b; b=a; a=(t1+t2)|0;
+    }
+    h0=(h0+a)|0; h1=(h1+b)|0; h2=(h2+c)|0; h3=(h3+d)|0;
+    h4=(h4+e)|0; h5=(h5+f)|0; h6=(h6+g)|0; h7=(h7+h)|0;
+  }
+  if(!mode) return h0 >>> 0;
+  return [h0,h1,h2,h3,h4,h5,h6,h7]
+    .map(function(x){ return (x>>>0).toString(16).padStart(8,"0"); }).join("");
+}
+
+/* ─────────────────────────────────────────────────────────
+   2. 세계의 상수
+   ───────────────────────────────────────────────────────── */
+// 발행 설계 — 총 50억 개, 총 발행기간 50년, 반감기 25회
+//   250만 × 1,000 × 2 = 50억   (등비수열 합: R0 × 반감기간격 × 2)
+//   1,000블록 × 25에라 = 25,000블록,  25,000 × 17.52초 = 438,000초 = 50 게임년
+// 시간 축척: 1 실제초 = 1 게임시간 (전기요금도 같은 축척을 쓴다)
+const CAP          = 5e9;      // 총 발행 상한 50억 KSK
+const REWARD0      = 2500000;  // 초기 블록 보상 250만 KSK
+const HALVING      = 1000;     // 반감기 간격 (블록) = 2 게임년
+const ERAS         = 25;       // 반감기 25회 → 50 게임년 뒤 발행 종료
+const MAX_BLOCKS   = HALVING * ERAS;
+const TARGET_SEC   = 17.52;    // 목표 블록 시간 (실제초 = 게임시간)
+const HOURS_PER_YR = 8760;     // 게임 1년 = 8,760 게임시간
+const BASE_PRICE   = 0.01;     // 시세 기준가 (원/KSK) — 1원 = 100 KSK
+const ELEC_BASE    = 120;      // 전기요금 단가 (원/kWh)
+const KWH_PER_MKSK = 60;       // 원가하한: 백만 KSK 당 기준 전력 (kWh)
+const PLAN_COST    = 5000;     // 폰 1대당 월 통신비 (원) — 폰 채굴의 주된 비용
+const MONTH_HOURS  = 730;      // 게임 한 달 (8760 ÷ 12)
+const START_SHARE  = 0.04;     // 폰 한 대로 출발하는 채굴 풀 지분 (4%)
+const START_CASH   = 500000;
+const SAVE_KEY     = "ksk_coin_v3";
+
+// 모바일은 발열·배터리를 고려해 프레임 예산을 줄인다
+const COARSE   = window.matchMedia && matchMedia("(pointer:coarse)").matches;
+const FRAME_MS = COARSE ? 8 : 12;
+
+// 채굴 장비는 휴대폰이다. mult 는 세계 안에서의 상대 채굴력, w 는 소비전력(와트).
+// 폰은 전기를 거의 안 쓰므로 실제 비용은 전기요금이 아니라 대당 통신비다.
+// → 요금제는 대수만큼 내니 "약한 폰 여러 대"보다 "센 폰"이 유리하다. 현실과 같다.
+const RIGS = [
+  { id:"old",    name:"구형 스마트폰",   mult:10, w:4,  cost:80000   },
+  { id:"used",   name:"중고 보급형",     mult:16, w:6,  cost:180000  },
+  { id:"budget", name:"신품 보급형",     mult:30, w:8,  cost:400000  },
+  { id:"flag",   name:"플래그십",       mult:70, w:11, cost:1200000 },
+  { id:"tablet", name:"태블릿",         mult:110, w:18, cost:1900000 }
+];
+
+/* ─────────────────────────────────────────────────────────
+   3. 상태
+   ───────────────────────────────────────────────────────── */
+let S = null;
+
+function freshState(){
+  return {
+    coin: 0, cash: START_CASH, mined: 0, blocks: 0,
+    counts: { old:1, used:0, budget:0, flag:0, tablet:0 },  // 쓰던 구형 폰 1대로 시작
+    netHash: null,        // 네트워크 해시레이트 (실측 뒤 설정)
+    baseHash: null,       // 내 기준 해시레이트 — 경제 계산을 측정 잡음에서 떼어 놓는다
+    slip: 0,              // 슬리피지 누적 (매매로 눌리거나 밀린 정도)
+    price: BASE_PRICE, prevPrice: BASE_PRICE,
+    hist: [], log: [],
+    demand: 1.0,          // 내부 수요 지수 (외부 데이터 없음)
+    blockTimer: 0,        // 세계의 다음 블록까지 남은 시간
+    poolPaid: 0,          // 풀에서 받은 누적 KSK
+    solo: 0,              // 내가 직접 찾은 블록 수
+    peakPrice: BASE_PRICE, spent: 0, over: false
+  };
+}
+
+// 채굴 런타임 (저장하지 않는 값)
+const M = {
+  on:false, nonce:0, batch:1500, hashes:0, hrAt:0, hr:0, hrSmooth:0, hrN:0, samples:[],
+  lastHex:"", lastBlockAt:0, raf:0
+};
+
+/* ─────────────────────────────────────────────────────────
+   4. 파생 계산 — 현실 데이터가 여기서 세계에 주입된다
+   ───────────────────────────────────────────────────────── */
+const clamp = (v,a,b) => v < a ? a : v > b ? b : v;
+
+const elecRate  = () => ELEC_BASE;                              // 건물 냉각계수는 F3.3 에서 곱한다
+const sentiment = () => S.demand;                               // 내부 수요 엔진
+const scarcity  = () => CAP / Math.max(CAP - S.mined, 1);       // 캘수록 커진다
+const fairPrice = () => BASE_PRICE * scarcity() * sentiment();
+const costFloor = () => elecRate() * KWH_PER_MKSK / 1e6;        // 이 아래로는 아무도 안 판다
+const gameYears = () => S.blocks * TARGET_SEC / HOURS_PER_YR;   // 세계의 경과 연수
+const era       = () => Math.floor(S.blocks / HALVING);
+
+const totalMult  = () => RIGS.reduce((a,r) => a + S.counts[r.id]*r.mult, 0);
+const totalKw    = () => RIGS.reduce((a,r) => a + S.counts[r.id]*r.w, 0) / 1000;
+const phoneCount = () => RIGS.reduce((a,r) => a + S.counts[r.id], 0);
+// 1초 = 1게임시간. 전기요금 + 대당 통신비 (통신비가 폰 채굴의 주된 비용)
+const costPerSec = () => elecRate()*totalKw() + PLAN_COST/MONTH_HOURS*phoneCount();
+const planPerSec = () => PLAN_COST/MONTH_HOURS*phoneCount();
+
+function reward(){
+  if(S.blocks >= MAX_BLOCKS) return 0;          // 50 게임년 — 발행 종료
+  return REWARD0 / Math.pow(2, era());
+}
+// 경제 계산(지분·기대수익)은 기준 해시레이트를 쓴다.
+// 실측값을 그대로 쓰면 측정 잡음만으로 수익 추정이 두 배씩 흔들린다.
+function myHash(){ return (S.baseHash || M.hrSmooth) * totalMult(); }
+function liveHash(){ return M.hrSmooth * totalMult(); }
+function share(){
+  if(!S.netHash || S.netHash <= 0) return 0;
+  return clamp(myHash() / S.netHash, 0, 1);
+}
+// 내가 풀어야 할 난이도: 기대 소요시간이 (20초 / 내 지분) 이 되도록
+function myDifficulty(){
+  if(!S.netHash) return 1;
+  return Math.max(1, (TARGET_SEC * S.netHash) / Math.max(totalMult(), 1));
+}
+const netDifficulty = () => S.netHash ? TARGET_SEC * S.netHash : 0;
+const revPerSec = () => share() * reward() * S.price / TARGET_SEC;
+
+/* ─────────────────────────────────────────────────────────
+   5. 포맷
+   ───────────────────────────────────────────────────────── */
+const won  = v => Math.round(v).toLocaleString("ko-KR");
+// 50억 규모라 억·만 단위로 접어 읽는다
+function ksk(v){
+  if(v >= 1e8) return (v/1e8).toFixed(2) + "억";
+  if(v >= 1e4) return (v/1e4).toFixed(1) + "만";
+  if(v >= 1)   return v.toFixed(1);
+  return v.toFixed(3);
+}
+const kskFull = v => Math.round(v).toLocaleString("ko-KR");
+// 1원 = 100 KSK 수준이라 시세는 소수점까지 보여야 한다
+const pw = v => v >= 100 ? won(v) : v.toFixed(5);
+function hs(v){
+  if(v >= 1e9) return (v/1e9).toFixed(2)+" GH/s";
+  if(v >= 1e6) return (v/1e6).toFixed(2)+" MH/s";
+  if(v >= 1e3) return (v/1e3).toFixed(1)+" kH/s";
+  return Math.round(v)+" H/s";
+}
+const big = v => v >= 1e6 ? (v/1e6).toFixed(2)+"M" : v >= 1e3 ? (v/1e3).toFixed(1)+"k" : Math.round(v);
+const $ = id => document.getElementById(id);
+
+function log(msg){
+  const t = new Date().toLocaleTimeString("ko-KR", {hour12:false});
+  S.log.unshift(t + " " + msg);
+  if(S.log.length > 30) S.log.pop();
+  $("log").innerHTML = S.log.map(l => "<div>"+l+"</div>").join("");
+}
+
+/* ─────────────────────────────────────────────────────────
+   6. 내부 수요 엔진 — 외부 데이터 없이 세계가 스스로 수요를 만든다
+   (현실 경제 API 연동은 취소됨. 이제 네트워크 요청이 하나도 없다.)
+   ───────────────────────────────────────────────────────── */
+function tickDemand(dt){
+  // 세계가 늙을수록 완만히 채택이 오르고(50년에 +60%), 그 값으로 되돌아오는 랜덤워크
+  const adopt = 1 + (gameYears()/50) * 0.6;
+  S.demand += ((adopt - S.demand)*0.02 + (Math.random()-0.5)*0.05) * dt;
+  S.demand = clamp(S.demand, 0.3, 3);
+}
+
+/* ─────────────────────────────────────────────────────────
+   7. 채굴 루프 — 한 프레임에 정해진 개수만 시도하고 양보한다
+   (9/1 강의: 싱글 스레드를 막으면 화면이 멈춘다)
+   ───────────────────────────────────────────────────────── */
+function mineFrame(){
+  if(!M.on){ M.raf = 0; return; }
+
+  // 네트워크 규모(S.netHash)는 내 해시레이트를 실측한 뒤에 정해진다.
+  // 그 전에는 난이도를 계산할 수 없으므로 블록을 인정하지 않고 측정만 한다.
+  // (target = -1 이면 h >= 0 이라 어떤 해시도 통과하지 못한다)
+  const calibrating = !S.baseHash;
+  const target = calibrating
+    ? -1
+    : Math.min(4294967295, Math.floor(4294967296 / myDifficulty()));
+  const header = S.blocks + "|" + (M.lastHex || "genesis") + "|" + reward() + "|";
+
+  const t0 = performance.now();
+  let found = -1, tried = 0;
+  for(let i=0; i<M.batch; i++){
+    const h = sha256(header + M.nonce, 0);
+    M.nonce++; tried++;
+    if(h <= target){ found = h; break; }
+  }
+  const dt = performance.now() - t0;
+  M.hashes += tried;                       // 배치 전체가 아니라 실제 시도한 횟수
+
+  // 배치 크기 자동 조정 — 기기에 맞춰 프레임 예산 안으로 (PC 12ms / 모바일 8ms)
+  if(dt > FRAME_MS + 3 && M.batch > 100) M.batch = Math.floor(M.batch * 0.75);
+  else if(dt < FRAME_MS - 3) M.batch = Math.min(60000, Math.floor(M.batch * 1.25));
+
+  // 해시레이트 측정
+  const now = performance.now();
+  if(now - M.hrAt > 500){
+    M.hr = M.hashes / ((now - M.hrAt)/1000);
+    M.hrSmooth = M.hrSmooth ? M.hrSmooth*0.85 + M.hr*0.15 : M.hr;
+    M.hashes = 0; M.hrAt = now; M.hrN++;
+    M.samples.push(M.hr);
+    if(M.samples.length > 5) M.samples.shift();
+
+    // 첫 측정은 배치가 아직 안 잡혀 두 배씩 튄다. 다섯 번(약 2.5초) 재고
+    // 뒤쪽 세 개의 중앙값으로 확정한다 — 기기가 느리면 난이도도 같이 낮게 잡히므로
+    // PC 든 휴대폰이든 블록 간격이 비슷해진다.
+    if(!S.baseHash && M.samples.length >= 5){
+      const tail = M.samples.slice(-3).sort(function(a,b){ return a-b; });
+      S.baseHash = tail[1];
+      S.netHash  = S.baseHash * totalMult() / START_SHARE;   // 폰 한 대 = 풀 지분 4%
+      M.nonce = 0;                                   // 측정에 쓴 논스는 버린다
+      log("해시레이트 측정 완료 — " + hs(liveHash()) +
+          " · 내 지분 " + (share()*100).toFixed(1) + "%");
+    }
+    // 발열로 기기가 느려지는 등의 실제 변화만 아주 느리게 반영한다
+    else if(S.baseHash) S.baseHash = S.baseHash*0.995 + M.hrSmooth*0.005;
+  }
+
+  if(found >= 0){
+    M.lastHex = sha256(header + (M.nonce-1), 1);
+    onSoloBlock();
+  }
+  M.raf = requestAnimationFrame(mineFrame);
+}
+
+// 내가 직접 목표값 이하의 해시를 찾았을 때. 풀에서는 이게 소득의 본체가 아니라
+// 드물게 터지는 보너스다 — 그래서 진짜 계산이 무의미해지지 않는다.
+function onSoloBlock(){
+  S.solo++;
+  const bonus = Math.min(reward() * 0.02, CAP - S.mined);
+  if(bonus > 0){ S.coin += bonus; S.mined += bonus; }
+  log("<b>직접 블록 발견!</b> 논스 "+M.nonce.toLocaleString()+" · 발견 보너스 +"+
+      kskFull(bonus)+" KSK · "+M.lastHex.slice(0,16)+"…");
+  M.nonce = 0;
+  save();
+}
+
+// 세계의 블록은 내가 캐든 안 캐든 17.52초마다 하나씩 나온다(네트워크는 계속 돈다).
+// 발행 일정·반감기가 여기에 매달려 있다.
+function worldBlock(){
+  S.blocks++;
+
+  // 채굴이 남으면 채굴자가 몰리고, 적자면 빠져나간다 → 난이도가 따라 움직인다
+  const p = clamp((S.price - costFloor()) / Math.max(S.price, 1e-9), -0.5, 0.5);
+  S.netHash *= (1 + 0.012*p + 0.001);
+
+  if(S.blocks % HALVING === 0 && S.blocks < MAX_BLOCKS)
+    log("<b>반감기 "+era()+"회차</b> ("+gameYears().toFixed(0)+"년차) — 블록 보상이 "+
+        kskFull(reward())+" KSK 로 줄었습니다");
+
+  if(S.blocks >= MAX_BLOCKS){
+    const rest = CAP - S.mined;
+    if(rest > 0){ S.coin += rest; S.mined = CAP; }
+    log("<b>발행 종료</b> — 50년이 지나 50억 KSK 가 모두 발행됐습니다");
+    endGame(true);
+  }
+}
+
+// 채굴 풀 정산 — 내 해시 비중만큼 연속으로 받는다.
+// 폰 한 대의 지분은 4% 라 블록을 직접 기다리면 7분씩 걸린다. 풀이 그걸 잘게 쪼개 준다.
+function tickPool(dt){
+  if(!M.on || !S.baseHash) return;
+  const gain = Math.min(share() * reward() / TARGET_SEC * dt, CAP - S.mined);
+  if(gain <= 0) return;
+  S.coin += gain; S.mined += gain; S.poolPaid += gain;
+}
+
+function toggleMine(){
+  M.on = !M.on;
+  $("bMine").textContent = M.on ? "채굴 정지" : "채굴 시작";
+  if(M.on){
+    M.hrAt = performance.now(); M.hashes = 0;
+    if(!M.raf) M.raf = requestAnimationFrame(mineFrame);
+    log("채굴 시작 — 총 배수 "+totalMult()+"배 · "+totalKw()+"kW");
+  }else{
+    M.hr = 0; M.hrSmooth = M.hrSmooth*0.5;
+    log("채굴 정지");
+  }
+}
+
+/* ─────────────────────────────────────────────────────────
+   8. 시장 — 가격 결정과 매매
+   ───────────────────────────────────────────────────────── */
+function tickWorld(dt){
+  tickDemand(dt);
+  S.blockTimer += dt;
+  let guard = 0;
+  while(S.blockTimer >= TARGET_SEC && !S.over && guard++ < 20){
+    S.blockTimer -= TARGET_SEC;
+    worldBlock();
+  }
+  tickPool(dt);
+}
+
+function tickMarket(dt){
+  S.slip *= 0.97;                                     // 슬리피지는 서서히 되돌아온다
+  const base  = Math.max(fairPrice(), costFloor());
+  const noise = 1 + (Math.random()-0.5) * 0.012;
+  S.prevPrice = S.price;
+  S.price = Math.max(1, base * (1 + S.slip) * noise);
+  if(S.price > S.peakPrice) S.peakPrice = S.price;
+
+  S.hist.push(S.price);
+  if(S.hist.length > 60) S.hist.shift();
+
+  if(M.on){
+    S.cash -= costPerSec() * dt;                      // 전기요금은 채굴 중에만
+    if(S.cash <= 0){
+      S.cash = 0;
+      M.on = false; $("bMine").textContent = "채굴 시작";
+      if(S.coin > 0) log("<b>현금 소진</b> — 채굴을 멈췄습니다. 코인을 팔아 요금을 내세요");
+      else endGame(false);
+    }
+  }
+}
+
+function sell(frac){
+  const amt = S.coin * frac;
+  if(amt <= 0) return;
+  const got = amt * S.price;
+  S.coin -= amt; S.cash += got;
+  S.slip -= frac >= 1 ? 0.08 : 0.03;                  // 팔면 눌린다
+  log("매도 "+ksk(amt)+" KSK → +"+won(got)+"원");
+  save();
+}
+function buy(frac){
+  const spend = S.cash * frac;
+  if(spend <= 0) return;
+  const amt = spend / S.price;
+  S.cash -= spend; S.coin += amt;
+  S.slip += 0.03;                                     // 사면 밀려 오른다
+  log("매수 "+ksk(amt)+" KSK ← -"+won(spend)+"원");
+  save();
+}
+
+/* ─────────────────────────────────────────────────────────
+   9. 장비 — 손익분기 시세가 핵심 학습 지점
+   ───────────────────────────────────────────────────────── */
+// 이 장비를 한 대 더 살 때, 늘어난 전기요금을 늘어난 수익이 덮으려면 시세가 얼마여야 하는가
+function breakEven(rig){
+  if(!S.netHash) return null;
+  const m0 = totalMult(), m1 = m0 + rig.mult;
+  const h  = M.hrSmooth || 1;
+  const s0 = clamp(h*m0 / S.netHash, 0, 1);
+  const s1 = clamp(h*m1 / S.netHash, 0, 1);
+  const dKsk = (s1 - s0) * reward() / TARGET_SEC;     // 초당 추가 KSK
+  if(dKsk <= 0) return Infinity;
+  return (elecRate() * rig.kw) / dKsk;                // 초당 추가 요금 ÷ 초당 추가 KSK
+}
+
+function buyRig(rig){
+  if(S.cash < rig.cost) return;
+  S.cash -= rig.cost; S.spent += rig.cost;
+  S.counts[rig.id]++;
+  log("<b>"+rig.name+"</b> 구매 · -"+won(rig.cost)+"원 · 총 배수 "+totalMult()+"배");
+  save(); renderRigs();
+}
+
+function renderRigs(){
+  $("rigs").innerHTML = RIGS.map(function(r){
+    const be = breakEven(r);
+    const beTxt = be === null ? "채굴을 시작하면 계산됩니다"
+      : be === Infinity ? "—"
+      : pw(be) + "원";
+    const bad = be !== null && be !== Infinity && be > S.price;
+    return '<div class="rig"><div class="top"><div>'+
+      '<div class="nm">'+r.name+' <span class="dimtxt">×'+S.counts[r.id]+'</span></div>'+
+      '<div class="meta">속도 '+r.mult+'배 · '+r.kw+'kW · '+won(r.cost)+'원</div>'+
+      '<div class="be">손익분기 시세 <b class="'+(bad?"down":"up")+'">'+beTxt+'</b></div>'+
+      '</div><button class="sm" data-rig="'+r.id+'"'+(S.cash<r.cost?" disabled":"")+'>구매</button>'+
+      '</div></div>';
+  }).join("");
+}
+
+/* ─────────────────────────────────────────────────────────
+   10. 그리기
+   ───────────────────────────────────────────────────────── */
+function drawChart(){
+  const cv = $("chart"), ctx = cv.getContext("2d");
+  const w = cv.clientWidth, h = 70, dpr = window.devicePixelRatio || 1;
+  if(cv.width !== w*dpr){ cv.width = w*dpr; cv.height = h*dpr; }
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,w,h);
+  const d = S.hist;
+  if(d.length < 2) return;
+  const lo = Math.min.apply(null,d), hi = Math.max.apply(null,d), sp = (hi-lo)||1;
+  const x = i => i/(d.length-1)*(w-2)+1;
+  const y = v => h-4 - (v-lo)/sp*(h-10);
+
+  ctx.beginPath(); ctx.moveTo(x(0), y(d[0]));
+  for(let i=1;i<d.length;i++) ctx.lineTo(x(i), y(d[i]));
+  const rising = d[d.length-1] >= d[0];
+  ctx.strokeStyle = rising ? "#3fb950" : "#f85149";
+  ctx.lineWidth = 1.6; ctx.stroke();
+  ctx.lineTo(x(d.length-1), h); ctx.lineTo(x(0), h); ctx.closePath();
+  ctx.fillStyle = rising ? "rgba(63,185,80,.13)" : "rgba(248,81,73,.13)";
+  ctx.fill();
+}
+
+function render(){
+  $("sCoin").textContent   = ksk(S.coin);
+  $("sCash").textContent   = won(S.cash);
+  $("sPrice").textContent  = pw(S.price);
+  $("sHash").textContent   = hs(liveHash());
+  $("sShare").textContent  = (share()*100).toFixed(1)+"%";
+  $("sSupply").textContent = (S.mined/CAP*100).toFixed(3)+"%";
+  $("sYear").textContent   = gameYears().toFixed(1)+"년";
+
+  $("rElec").textContent = elecRate().toFixed(0)+"원/kWh";
+  $("rPlan").textContent = won(PLAN_COST)+"원 × "+phoneCount()+"대";
+  $("rSent").textContent = "×"+S.demand.toFixed(3);
+  $("rSent").className   = S.demand>=1 ? "up" : "down";
+  $("rNet").textContent  = S.netHash ? hs(S.netHash) : "측정 전";
+
+  $("mDiff").textContent   = big(netDifficulty());
+  $("mNonce").textContent  = M.nonce.toLocaleString();
+  $("mBlocks").textContent = S.blocks.toLocaleString()+" / "+ksk(reward())+" KSK";
+  $("mHalve").textContent  = "에라 "+(era()+1)+"/"+ERAS+" · "+
+                             (HALVING - S.blocks%HALVING).toLocaleString()+" 블록";
+
+  const c = costPerSec(), rv = revPerSec(), nt = rv - c;
+  $("mCost").textContent = M.on ? "-"+won(c)+"원 (통신 "+won(planPerSec())+")" : "0원 (정지)";
+  $("mRev").textContent  = won(rv)+"원";
+  $("mNet").textContent  = (nt>=0?"+":"")+won(nt)+"원";
+  $("mNet").className    = nt>=0 ? "up" : "down";
+
+  $("mPool").textContent = kskFull(S.poolPaid)+" KSK / "+S.solo+"회";
+  // 진행바는 세계의 다음 블록까지
+  $("mBar").style.width = (S.blockTimer/TARGET_SEC*100).toFixed(1)+"%";
+  $("hashline").textContent = !M.on ? "대기 중…"
+    : !S.baseHash ? "이 기기의 해시레이트 측정 중… (끝나면 채굴을 시작합니다)"
+    : M.lastHex ? "직접 찾은 해시 "+M.lastHex.slice(0,32)+"…"
+    : "풀에 해시 제출 중… 논스 "+M.nonce.toLocaleString();
+
+  $("kPrice").textContent = pw(S.price);
+  const ch = (S.price-S.prevPrice)/Math.max(S.prevPrice,1)*100;
+  $("kChg").textContent = (ch>=0?"▲":"▼")+Math.abs(ch).toFixed(2)+"%";
+  $("kChg").className   = ch>=0 ? "up" : "down";
+  $("kFair").textContent  = pw(fairPrice())+"원  (희소성 ×"+scarcity().toFixed(3)+")";
+  $("kFloor").textContent = pw(costFloor())+"원";
+  $("kValue").textContent = won(S.coin*S.price)+"원";
+
+  document.querySelectorAll("[data-rig]").forEach(function(b){
+    const r = RIGS.find(x => x.id === b.dataset.rig);
+    b.disabled = S.cash < r.cost;
+  });
+  drawChart();
+}
+
+/* ─────────────────────────────────────────────────────────
+   11. 저장 / 종료
+   ───────────────────────────────────────────────────────── */
+function save(){
+  try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){}
+}
+function load(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(!raw) return false;
+    const o = JSON.parse(raw);
+    if(!o || typeof o.coin !== "number" || o.over) return false;
+    S = Object.assign(freshState(), o);
+    return true;
+  }catch(e){ return false; }
+}
+
+function endGame(complete){
+  M.on = false; S.over = true;
+  const net = S.cash + S.coin*S.price;
+  $("eTitle").textContent = complete ? "발행 완료" : "파산";
+  $("eDesc").textContent  = complete
+    ? "21,000 KSK 가 모두 발행됐습니다. 더 캘 코인이 없습니다."
+    : "현금이 바닥나고 팔 코인도 남지 않았습니다. 전기요금이 수익을 넘어섰습니다.";
+  $("eStats").innerHTML =
+    '<div class="row"><span>총 채굴량</span><b>'+ksk(S.mined)+' KSK</b></div>'+
+    '<div class="row"><span>찾은 블록</span><b>'+S.blocks+'</b></div>'+
+    '<div class="row"><span>최종 순자산</span><b>'+won(net)+'원</b></div>'+
+    '<div class="row"><span>최고 시세</span><b>'+won(S.peakPrice)+'원</b></div>'+
+    '<div class="row"><span>장비 투자</span><b>'+won(S.spent)+'원</b></div>';
+  $("ovEnd").classList.remove("hide");
+  save();
+}
+
+function reset(){
+  try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
+  location.reload();
+}
+
+/* ─────────────────────────────────────────────────────────
+   12. 시작
+   ───────────────────────────────────────────────────────── */
+const resumed = load();
+if(!resumed) S = freshState();
+
+$("bStart").onclick = function(){
+  $("ovStart").classList.add("hide");
+  if(!resumed) log("시작 — 시작 자금 "+won(START_CASH)+"원 · 소형 리그 1대");
+  else log("이어서 진행 — 블록 "+S.blocks+" · "+ksk(S.coin)+" KSK");
+};
+$("bMine").onclick  = toggleMine;
+$("bReset").onclick = reset;
+$("bAgain").onclick = reset;
+
+// 휴대폰에서 화면이 꺼지거나 앱을 전환하면 requestAnimationFrame 이 멈춘다.
+// 그대로 두면 채굴은 안 되는데 setInterval 만 살아 전기요금이 새어 나간다.
+// 그래서 숨겨지면 채굴을 접고, 돌아오면 자동으로 재개한다.
+let pausedByHide = false;
+document.addEventListener("visibilitychange", function(){
+  if(document.hidden){
+    if(M.on){
+      pausedByHide = true; M.on = false;
+      $("bMine").textContent = "채굴 시작";
+      log("화면이 꺼져 채굴을 멈췄습니다 — 돌아오면 자동 재개합니다");
+      save();
+    }
+  }else if(pausedByHide){
+    pausedByHide = false;
+    if(!S.over && !M.on) toggleMine();
+  }
+});
+
+document.addEventListener("click", function(e){
+  const b = e.target.closest("button");
+  if(!b) return;
+  if(b.dataset.sell) sell(parseFloat(b.dataset.sell));
+  if(b.dataset.buy)  buy(parseFloat(b.dataset.buy));
+  if(b.dataset.rig)  buyRig(RIGS.find(r => r.id === b.dataset.rig));
+});
+
+$("log").innerHTML = S.log.map(l => "<div>"+l+"</div>").join("");
+renderRigs();
+
+let last = performance.now();
+setInterval(function(){
+  const now = performance.now();
+  // 탭이 백그라운드였다면 dt 가 수백 초로 튄다 — 그만큼 요금을 물리면 즉시 파산한다
+  const dt = Math.min((now-last)/1000, 2);
+  last = now;
+  if(!S.over){ tickWorld(dt); tickMarket(dt); }
+  render();
+  renderRigs();
+}, 500);
+
+setInterval(save, 5000);
+</script>
+</body>
+</html>
