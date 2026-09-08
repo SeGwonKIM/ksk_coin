@@ -315,10 +315,11 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
     </div>
 
     <div class="panel" data-tab="estate">
-      <h2>담보 대출 — 매물 가치의 30~70%</h2>
+      <h2>담보 대출 — 매물 가치의 30~70% · 이자 2~7%</h2>
       <div class="row"><span>대출 한도</span><b id="loCap">—</b></div>
       <div class="row"><span>잔액 / 남은 한도</span><b id="loDebt">—</b></div>
-      <div class="row"><span>초당 이자 (연 4.8%)</span><b id="loInt" class="down">—</b></div>
+      <div class="row"><span>평균 이자율 (담보물건별)</span><b id="loRate" class="down">—</b></div>
+      <div class="row"><span>초당 이자</span><b id="loInt" class="down">—</b></div>
       <div class="row"><span>소득 증빙 보너스</span><b id="loBonus">—</b></div>
       <div class="btns">
         <button class="buy sm" data-borrow="0.5">한도 50% 대출</button>
@@ -328,8 +329,28 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
       </div>
       <div class="sub">담보 인정 비율은 <b>매물의 시장가치에 따라 30~70%</b>입니다 —
         값이 비쌀수록 낮습니다(고가주택 규제와 같은 방향). 토지는 −10%p, 상가는 −5%p.
+        <b>이자는 담보물건에 따라 2~7%</b>입니다 — 주거용 2.5%(유동성이 높아 싸다) ·
+        오피스 4% · 상가 5.5% · 토지 7%(잘 안 팔려 비싸다). 3억원 미만 소액은 +0.5%p.
         <b>대기업·공무원·임원</b>이면 소득 증빙으로 한도가 20% 늘어납니다.
         집값이 떨어져 한도를 넘으면 <b>마진콜</b>로 자동 상환됩니다.</div>
+    </div>
+
+    <div class="panel" data-tab="estate">
+      <h2>신용 대출 — 10~1,000 KSK · 이자 1~9%</h2>
+      <div class="row"><span>신용 점수</span><b id="crScore">—</b></div>
+      <div class="row"><span>한도 / 잔액</span><b id="crCap">—</b></div>
+      <div class="row"><span>이자율 / 초당 이자</span><b id="crRate" class="down">—</b></div>
+      <div id="crBreak" class="sub"></div>
+      <div class="btns">
+        <button class="buy sm" data-crborrow="0.5">한도 50% 대출</button>
+        <button class="buy sm" data-crborrow="1">한도 전액 대출</button>
+        <button class="sell sm" data-crrepay="0.5">50% 상환</button>
+        <button class="sell sm" data-crrepay="1">전액 상환</button>
+      </div>
+      <div class="sub">담보 없이 <b>사람</b>을 봅니다 — 직업(최대 35점) · 근속 5년(20점) ·
+        학력(15점) · 자격(10점) · 자산(20점)에서 점수가 나오고 기존 담보부채는 감점입니다.
+        <b>무직·무자산이면 10 KSK · 9%</b>, <b>임원+근속+석사+자격+자산이면 1,000 KSK · 1%</b>.
+        담보가 없으니 마진콜은 없지만, 갚지 못하면 이자가 잔액에 붙습니다.</div>
     </div>
 
     <div class="panel" data-tab="estate">
@@ -642,7 +663,7 @@ function freshState(){
     hh: { items: {}, placedAt: null },   // F4 살림살이 — items: {품목id:{n:개수, age:경과 게임개월}}
     mine: { at: null, place: {}, penalty: 0 },   // F3 채굴 인프라 — at: 채굴장 건물id, place: {폰id:대수}
     re: { owned: [], mkt: 1.0, held: {}, npcAt: 0 },   // F2 부동산 — held: {매물id: 가상인물id}
-    loan: { debt: 0, called: 0 },   // F2.9 담보 대출 — called: 로그 전 누적 자동상환 — owned:[{id,price(매입가),yr}], mkt: 시세 배수
+    loan: { debt: 0, called: 0, credit: 0 },   // F2.9 담보/신용 대출 — called: 로그 전 누적 자동상환 — owned:[{id,price(매입가),yr}], mkt: 시세 배수
     demand: 1.0,          // 내부 수요 지수 (외부 데이터 없음)
     blockTimer: 0,        // 세계의 다음 블록까지 남은 시간
     poolPaid: 0,          // 풀에서 받은 누적 KSK
@@ -1371,6 +1392,7 @@ function initTabs(){
 // 부동산·살림살이가 붙으면 estateValue() / hhValue() 를 전역으로 노출한다 (계약 §6)
 function netWorth(){
   let v = S.coin + S.staked;   // 코인이 유일한 화폐 — 환산 없이 그대로 더한다
+  if(typeof S.loan !== "undefined") v -= S.loan.debt + S.loan.credit;   // 부채를 뺀다
   if(typeof estateValue === "function") v += estateValue() || 0;
   if(typeof hhValue     === "function") v += hhValue()     || 0;
   return v;
@@ -1477,10 +1499,55 @@ const npcFind = id => NPCS.find(function(n){ return n.id === id; });
 //   원룸 0.8억 → 70% · 관악우성 11.5억 → 58.8% · 타워팰리스 39억 → 30%
 const LTV_HI    = 0.70;    // 최저가 매물의 LTV
 const LTV_LO    = 0.30;    // 최고가 매물의 LTV
-const LOAN_RATE = 0.048;   // 연 이자율 4.8% (월 0.4%)
 const LOAN_JOB_BONUS = 0.2;// 소득 증빙이 있으면 한도 +20%
 const MARGIN_MIN  = 0.01;  // 이만큼 넘겨야 마진콜이 작동한다 (미세 진동 무시)
 const MARGIN_LOG  = 1.0;   // 자동 상환 누적이 이만큼 쌓이면 로그를 한 줄 남긴다
+
+// 담보대출 이자는 **담보물건에 따라 2~7%** 다. 용도가 기준이다 —
+// 주거용은 담보 가치가 명확하고 유동성이 높아 싸고, 토지는 잘 안 팔려 비싸다.
+// 실제 담보대출 금리 구조와 같은 방향이다.
+const RATE_BY_USE = { "주거":0.025, "오피스":0.040, "상가":0.055, "토지":0.070 };
+const RATE_MIN = 0.02, RATE_MAX = 0.07;
+
+function estRate(e){
+  let r = RATE_BY_USE[e.use] !== undefined ? RATE_BY_USE[e.use] : 0.05;
+  if(e.real < 3) r += 0.005;        // 소액 담보는 금리가 조금 높다 (실제와 같다)
+  return clamp(r, RATE_MIN, RATE_MAX);
+}
+// 담보 포트폴리오의 가중평균 금리 — 한도 기여분으로 가중한다
+function loanRate(){
+  let w = 0, sum = 0;
+  S.re.owned.forEach(function(o){
+    const e = estFind(o.id);
+    if(!e) return;
+    const room = estPrice(e) * estLtv(e);
+    w += room; sum += room * estRate(e);
+  });
+  return w > 0 ? sum / w : RATE_BY_USE["주거"];
+}
+
+// ── 신용대출 — 소득·직업·사회적 위치에 따라 10~1,000 KSK, 이자 1~9% ──
+const CREDIT_MIN_CAP = 10,   CREDIT_MAX_CAP = 1000;
+const CREDIT_MAX_RATE = 0.09, CREDIT_MIN_RATE = 0.01;
+
+// 신용 점수 0~100. 담보가 없으니 **사람** 을 본다.
+function creditScore(){
+  if(typeof S.job === "undefined") return 0;
+  let s = 0;
+  // 직업 — 소득의 안정성 (최대 35점)
+  const rank = { parttime:8, sme:18, realtor:20, civil:30, corp:30, exec:35 };
+  s += S.job.id ? (rank[S.job.id] !== undefined ? rank[S.job.id] : 10) : 0;
+  s += Math.min(S.job.months / 60, 1) * 20;          // 근속 5년에 만점 (최대 20)
+  s += S.job.edu * 7.5;                               // 학력 단계 (최대 15)
+  s += Math.min(S.job.certs.length * 5, 10);          // 자격 (최대 10)
+  const asset = typeof estateValue === "function" ? estateValue() : 0;
+  s += Math.min(asset / 2000, 1) * 20;                // 자산 (최대 20)
+  s -= Math.min(S.loan.debt / 1000, 1) * 20;          // 기존 담보부채는 감점
+  return clamp(s, 0, 100);
+}
+const creditCap  = () => CREDIT_MIN_CAP + creditScore()/100 * (CREDIT_MAX_CAP - CREDIT_MIN_CAP);
+const creditRate = () => CREDIT_MAX_RATE - creditScore()/100 * (CREDIT_MAX_RATE - CREDIT_MIN_RATE);
+const creditRoom = () => Math.max(0, creditCap() - S.loan.credit);
 
 function estLtv(e){
   const lo = ESTATES[0].real, hi = ESTATES[ESTATES.length-1].real;
@@ -1505,7 +1572,10 @@ function loanCap(){
 }
 const loanRoom      = () => Math.max(0, loanCap() - S.loan.debt);
 // 1초 = 1게임시간이므로 연이율을 8,760 으로 나눈다
-const loanIntPerSec = () => S.loan.debt * LOAN_RATE / HOURS_PER_YR;
+const mortIntPerSec   = () => S.loan.debt   * loanRate()   / HOURS_PER_YR;
+const creditIntPerSec = () => S.loan.credit * creditRate() / HOURS_PER_YR;
+// F5 의 netFlowPerSec 이 이 이름으로 읽어 간다 — 담보 + 신용 합계다
+const loanIntPerSec   = () => mortIntPerSec() + creditIntPerSec();
 
 function borrow(frac){
   const amt = loanRoom() * frac;
@@ -1521,7 +1591,26 @@ function repay(frac){
   if(amt <= KSK_MIN) return;
   S.coin -= amt; S.loan.debt -= amt;
   if(S.loan.debt < KSK_MIN) S.loan.debt = 0;
-  log("<b>상환</b> -"+ksk(amt)+" KSK · 잔액 "+ksk(S.loan.debt)+" KSK");
+  log("<b>담보 상환</b> -"+ksk(amt)+" KSK · 잔액 "+ksk(S.loan.debt)+" KSK");
+  save(); renderLoan();
+}
+
+function borrowCredit(frac){
+  const amt = creditRoom() * frac;
+  if(amt <= KSK_MIN) return;
+  S.loan.credit += amt;
+  receive(amt);
+  log("<b>신용대출</b> +"+ksk(amt)+" KSK · 잔액 "+ksk(S.loan.credit)+
+      " KSK · 신용점수 "+creditScore().toFixed(0)+"점 · 이자 "+
+      (creditRate()*100).toFixed(1)+"%");
+  save(); renderLoan();
+}
+function repayCredit(frac){
+  const amt = Math.min(S.loan.credit * frac, S.coin);
+  if(amt <= KSK_MIN) return;
+  S.coin -= amt; S.loan.credit -= amt;
+  if(S.loan.credit < KSK_MIN) S.loan.credit = 0;
+  log("<b>신용 상환</b> -"+ksk(amt)+" KSK · 잔액 "+ksk(S.loan.credit)+" KSK");
   save(); renderLoan();
 }
 // 이 매물을 들고 있는 가상 인물 (없으면 null)
@@ -1645,10 +1734,14 @@ tickHooks.push(function(dt){
   npcTick(dt);   // 가상 인물들이 서로 거래한다
 
   // 대출 이자 — 매초 나간다. 갚을 코인이 없으면 잔액에 더해진다(연체 이자).
-  if(S.loan.debt > 0){
+  if(S.loan.debt > 0 || S.loan.credit > 0){
     const due = loanIntPerSec() * dt;
     if(S.coin >= due) S.coin -= due;
-    else { S.coin = 0; S.loan.debt += due - S.coin; }
+    else {
+      // 갚을 코인이 없으면 잔액에 더해진다(연체). 담보가 있으면 담보 쪽에 붙인다.
+      const short = due - S.coin; S.coin = 0;
+      if(S.loan.debt > 0) S.loan.debt += short; else S.loan.credit += short;
+    }
     // 마진콜 — 집값이 떨어져 한도를 넘으면 자동으로 일부 상환한다.
     // 상환은 매초 일어나지만 **로그는 의미 있는 금액만** 남긴다.
     // 그러지 않으면 500ms 마다 0.009 KSK 상환 기록이 30줄 원장을 채워
@@ -1693,7 +1786,7 @@ function estCard(e, owned){
     '<div class="meta">'+ksk(p)+' KSK · 취득세·중개 포함 <b>'+ksk(total)+' KSK</b>'+
       ' <span class="dimtxt">· 실제 참고 '+e.real+'억원</span></div>'+
     '<div class="num">담보 LTV '+(estLtv(e)*100).toFixed(1)+'% → 대출 '+
-      ksk(estPrice(e)*estLtv(e))+' KSK</div>'+
+      ksk(estPrice(e)*estLtv(e))+' KSK · 이자 '+(estRate(e)*100).toFixed(1)+'%</div>'+
     '<div class="num">월 임대 '+ksk(e.rent)+' − 관리비 '+ksk(e.fee)+
       ' = <b class="up">'+ksk(e.rent-e.fee)+' KSK/월</b> · 수용 '+e.kw+'kW · 냉각 ×'+e.cool+'</div>'+
     '</div><button class="buy sm" data-buyre="'+e.id+'"'+(can?"":" disabled")+'>매입</button>'+
@@ -1740,8 +1833,25 @@ function renderLoan(){
   $("loCap").className     = loanCap() > 0 ? "up" : "dimtxt";
   $("loDebt").textContent  = ksk(S.loan.debt)+" / "+ksk(loanRoom())+" KSK";
   $("loDebt").className    = S.loan.debt > 0 ? "down" : "dimtxt";
+  $("loRate").textContent  = S.re.owned.length
+    ? (loanRate()*100).toFixed(2)+"% (연)" : "담보 없음";
+  $("loRate").className    = S.re.owned.length ? "down" : "dimtxt";
   $("loInt").textContent   = S.loan.debt > 0
-    ? "-"+ksk(loanIntPerSec())+" KSK/초 (월 "+ksk(loanIntPerSec()*MONTH_HOURS)+")" : "0";
+    ? "-"+ksk(mortIntPerSec())+" KSK/초 (월 "+ksk(mortIntPerSec()*MONTH_HOURS)+")" : "0";
+
+  // 신용 대출
+  const sc = creditScore();
+  $("crScore").textContent = sc.toFixed(0)+"점 / 100";
+  $("crScore").className   = sc >= 60 ? "up" : sc >= 30 ? "warn" : "down";
+  $("crCap").textContent   = ksk(creditCap())+" / "+ksk(S.loan.credit)+" KSK";
+  $("crRate").textContent  = (creditRate()*100).toFixed(1)+"% · "+
+    (S.loan.credit > 0 ? "-"+ksk(creditIntPerSec())+" KSK/초" : "0");
+  const j = (typeof jobNow === "function" && jobNow()) ? jobNow().name : "무직";
+  $("crBreak").textContent = "직업 "+j+" · 근속 "+S.job.months.toFixed(1)+
+    "개월 · 학력 "+S.job.edu+"단계 · 자격 "+S.job.certs.length+"개 · 부동산 "+
+    ksk(typeof estateValue === "function" ? estateValue() : 0)+" KSK";
+  document.querySelectorAll("[data-crborrow]").forEach(function(b){ b.disabled = creditRoom() <= KSK_MIN; });
+  document.querySelectorAll("[data-crrepay]").forEach(function(b){ b.disabled = S.loan.credit <= KSK_MIN; });
   $("loBonus").textContent = loanJobBonus() > 0
     ? "+"+(loanJobBonus()*100).toFixed(0)+"% (소득 증빙)" : "없음";
   $("loBonus").className   = loanJobBonus() > 0 ? "up" : "dimtxt";
@@ -1757,8 +1867,10 @@ document.addEventListener("click", function(ev){
   if(!b) return;
   if(b.dataset.buyre)  buyEstate(b.dataset.buyre);
   if(b.dataset.sellre) sellEstate(b.dataset.sellre);
-  if(b.dataset.borrow) borrow(parseFloat(b.dataset.borrow));
-  if(b.dataset.repay)  repay(parseFloat(b.dataset.repay));
+  if(b.dataset.borrow)   borrow(parseFloat(b.dataset.borrow));
+  if(b.dataset.repay)    repay(parseFloat(b.dataset.repay));
+  if(b.dataset.crborrow) borrowCredit(parseFloat(b.dataset.crborrow));
+  if(b.dataset.crrepay)  repayCredit(parseFloat(b.dataset.crrepay));
 });
 document.addEventListener("change", function(ev){
   const t = ev.target;
@@ -2312,11 +2424,11 @@ const AGENCY_PAY = 5.0;      // 개업 기본 수입 (500만원 · 부동산 시
 
 const JOBS = [
   { id:"parttime", name:"편의점 알바",   pay:1.2,  hours:20, needEdu:0, needCert:null,        odds:0.95 },
-  { id:"sme",      name:"중소기업 사 KSK", pay:3.0,  hours:40, needEdu:0, needCert:null,        odds:0.60 },
+  { id:"sme",      name:"중소기업 사원", pay:3.0,  hours:40, needEdu:0, needCert:null,        odds:0.60 },
   { id:"realtor",  name:"부동산 중개사", pay:3.5,  hours:40, needEdu:0, needCert:"realtor",   odds:0.90 },
-  { id:"civil",    name:"공무 KSK",       pay:4.5,  hours:40, needEdu:1, needCert:"civilexam", odds:0.50 },
-  { id:"corp",     name:"대기업 사 KSK",   pay:7.0,  hours:45, needEdu:1, needCert:null,        odds:0.35 },
-  { id:"exec",     name:"대기업 임 KSK",   pay:16.0, hours:55, needEdu:2, needCert:null,        odds:0.15 }
+  { id:"civil",    name:"공무원",       pay:4.5,  hours:40, needEdu:1, needCert:"civilexam", odds:0.50 },
+  { id:"corp",     name:"대기업 사원",   pay:7.0,  hours:45, needEdu:1, needCert:null,        odds:0.35 },
+  { id:"exec",     name:"대기업 임원",   pay:16.0, hours:55, needEdu:2, needCert:null,        odds:0.15 }
 ];
 
 // edu > 0 이면 합격 시 학력 단계가 그 값으로 오른다
