@@ -113,6 +113,15 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
 #reList,#reOwned{max-height:420px;overflow-y:auto}
 /* ==== [F2:부동산] CSS 끝 ==== */
 /* ==== [F3:채굴인프라] CSS 시작 ==== */
+.plc{display:flex;justify-content:space-between;align-items:center;gap:8px;
+  border:1px solid var(--line);border-radius:6px;padding:7px 9px;margin-bottom:6px}
+.plc .nm{font-weight:600;font-size:13px}
+.plc .meta{color:var(--dim);font-size:11px;font-variant-numeric:tabular-nums}
+.plc .ctl{display:flex;align-items:center;gap:6px}
+.plc .ctl b{min-width:34px;text-align:center;font-variant-numeric:tabular-nums}
+.bar2{height:6px;background:#0b0f14;border-radius:3px;overflow:hidden;margin:8px 0}
+.bar2>div{height:100%;background:var(--up)}
+.bar2>div.over{background:var(--down)}
 /* ==== [F3:채굴인프라] CSS 끝 ==== */
 /* ==== [F4:살림살이] CSS 시작 ==== */
 /* ==== [F4:살림살이] CSS 끝 ==== */
@@ -266,6 +275,22 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
     </div>
     <!-- ==== [F2:부동산] 패널 끝 ==== -->
     <!-- ==== [F3:채굴인프라] 패널 시작 ==== -->
+    <div class="panel" data-tab="mine">
+      <h2>채굴장 — 어디서 캐는가</h2>
+      <div id="mineNone" class="sub">보유한 건물이 없습니다. 부동산 탭에서 건물을 먼저 사세요.</div>
+      <div id="mineBox" hidden>
+        <div class="btns"><select id="mineAt"></select></div>
+        <div class="row"><span>회선 한도 / 배치한 폰</span><b id="mLines">—</b></div>
+        <div class="bar2"><div id="mLineBar"></div></div>
+        <div class="row"><span>운영 효율 계수</span><b id="mCool">—</b></div>
+        <div class="row"><span>초당 절감액</span><b id="mSave" class="up">—</b></div>
+        <div class="row"><span>민원 상태</span><b id="mPenalty">정상</b></div>
+        <div id="mPlace"></div>
+        <div class="sub">건물에 배치한 폰만 효율 할인을 받습니다. 효율 계수는 전기요금과
+          통신비 모두에 곱해집니다 — 제대로 된 건물은 냉각도 좋고 <b>기업 회선 요율</b>을 받기 때문입니다.
+          주거용 건물에서 회선을 한도의 80% 넘게 쓰면 민원이 발생합니다.</div>
+      </div>
+    </div>
     <!-- ==== [F3:채굴인프라] 패널 끝 ==== -->
     <!-- ==== [F4:살림살이] 패널 시작 ==== -->
     <!-- ==== [F4:살림살이] 패널 끝 ==== -->
@@ -456,6 +481,7 @@ function freshState(){
     attestTimer: 0,
     slashed: 0,           // 미가동 누출로 잃은 양
     fees: 0,              // 누적 수수료 (0.01%)
+    mine: { at: null, place: {}, penalty: 0 },   // F3 채굴 인프라 — at: 채굴장 건물id, place: {폰id:대수}
     re: { owned: [], mkt: 1.0 },   // F2 부동산 — owned:[{id,price(매입가),yr}], mkt: 시세 배수
     demand: 1.0,          // 내부 수요 지수 (외부 데이터 없음)
     blockTimer: 0,        // 세계의 다음 블록까지 남은 시간
@@ -1319,7 +1345,159 @@ document.addEventListener("change", function(ev){
 /* ==== [F2:부동산] JS 끝 ==== */
 
 /* ==== [F3:채굴인프라] JS 시작 ==== */
-// 상태: freshState() 에 필드 추가 · 렌더: renderHooks 에 함수 등록
+// F3 — 건물이 채굴장이다. "어디서 캐는가"가 "얼마를 버는가"를 결정한다.
+//
+// 설계 변경 근거: 스킬은 cool 을 '냉각 계수'로 두고 전기요금에만 곱하게 했다.
+// 그건 채굴 장비가 GPU·ASIC 팜(2~28kW)이던 시절의 전제다. 폰 채굴로 바뀌자
+// 폰은 4~18W 라 전기가 총비용의 6~14% 밖에 안 되고, 냉각만으로는 데이터센터에서도
+// 총비용이 6% 밖에 줄지 않아 건물을 살 이유가 사라졌다.
+// → cool 을 '운영 효율 계수'로 넓혀 전기 + 통신비 모두에 곱한다. 근거도 현실적이다:
+//   제대로 된 건물은 냉각만 좋은 게 아니라 기업 회선 요율을 받는다.
+// 그리고 kw 를 그대로 쓰면 한도가 조여지지 않으므로(원룸 300W = 태블릿 16대)
+// 회선 수 한도로 환산한다.
+const LINES_PER_KW = 6;      // kW → 동시 개통 가능 회선 수
+const NIMBY_RATE   = 0.0015; // 초당 민원 발생 확률 (주거용, 한도 80% 초과 시)
+const NIMBY_HOLD   = 300;    // 민원 뒤 효율 할인 정지 시간 (초 = 게임시간)
+
+// 토지(kw 0)는 회선을 깔 수 없어 채굴장이 되지 못한다
+const estLines = e => e.kw > 0 ? Math.max(1, Math.round(e.kw * LINES_PER_KW)) : 0;
+
+// 배치한 건물. 팔았으면 null 을 돌려준다 (아래 훅이 상태도 정리한다)
+function minedAt(){
+  if(!S.mine.at) return null;
+  if(!S.re.owned.some(function(o){ return o.id === S.mine.at; })) return null;
+  return estFind(S.mine.at);
+}
+const placedCount = () => RIGS.reduce(function(a,r){ return a + (S.mine.place[r.id]||0); }, 0);
+
+// 계약 §5 — 화면에서도 쓰므로 전역으로 노출한다
+function coolFactor(){
+  const e = minedAt();
+  if(!e || S.mine.penalty > 0) return 1;          // 미배치·민원 중이면 할인 없음
+  const n = phoneCount();
+  if(n <= 0) return 1;
+  // 건물에 실제로 배치한 폰의 비율만 할인을 받는다
+  return 1 - (1 - e.cool) * (Math.min(placedCount(), n) / n);
+}
+const coolSavePerSec = () => costPerSec() * (1 - coolFactor());
+
+function placeMax(rigId){
+  const e = minedAt();
+  if(!e) return 0;
+  const lines = estLines(e);
+  const others = placedCount() - (S.mine.place[rigId]||0);
+  return Math.min(S.counts[rigId], Math.max(0, lines - others));   // 보유 대수와 회선 한도 둘 다
+}
+
+function placeAdd(rigId, d){
+  const cur = S.mine.place[rigId] || 0;
+  const next = clamp(cur + d, 0, placeMax(rigId));
+  if(next === cur) return;
+  S.mine.place[rigId] = next;
+  save(); renderMine();
+}
+
+function setMineAt(id){
+  if(S.mine.at === id) return;
+  S.mine.at = id || null;
+  S.mine.place = {};                               // 건물이 바뀌면 배치를 비운다
+  const e = minedAt();
+  log(e ? "채굴장을 <b>"+e.name+"</b> 으로 지정 (회선 한도 "+estLines(e)+
+          "대 · 운영 효율 ×"+e.cool+")"
+        : "채굴장 지정을 해제했습니다");
+  save(); renderMine();
+}
+
+tickHooks.push(function(dt){
+  // 배치한 건물을 F2 에서 팔면 여기서 해제한다.
+  // F2 의 매도 함수를 고치지 않으므로 구역 충돌이 없다 (스킬 규칙).
+  if(S.mine.at && !S.re.owned.some(function(o){ return o.id === S.mine.at; })){
+    log("배치했던 건물을 매도해 채굴장 지정이 해제됐습니다");
+    S.mine.at = null; S.mine.place = {};
+  }
+  if(S.mine.penalty > 0) S.mine.penalty = Math.max(0, S.mine.penalty - dt);
+  if(!M.on) return;
+
+  // F0 가 이미 기준 운영비(전기+통신)를 청구했다. 여기서는 그 차액만 조정한다.
+  // coolFactor() < 1 이면 이 식은 현금을 더해 준다 — 할인이므로 의도한 부호다.
+  S.cash -= costPerSec() * (coolFactor() - 1) * dt;
+
+  // F3.6 소음·민원 — 주거용 건물에 회선을 몰아넣으면 이웃이 참지 않는다
+  const e = minedAt();
+  if(e && e.use === "주거" && S.mine.penalty <= 0 &&
+     placedCount() > estLines(e)*0.8 && Math.random() < NIMBY_RATE*dt){
+    const fine = e.fee * 2;
+    S.cash = Math.max(0, S.cash - fine);
+    S.mine.penalty = NIMBY_HOLD;
+    log("<b>민원 발생</b> — 주거용 건물 <b>"+e.name+"</b> 의 회선이 한도의 80% 를 넘었습니다. "+
+        "벌금 "+won(fine)+"원 · "+NIMBY_HOLD+"초간 효율 할인 정지");
+    save();
+  }
+});
+
+function renderMine(){
+  if(!$("mineBox")) return;
+  const own = S.re.owned.map(function(o){ return estFind(o.id); }).filter(Boolean);
+  const usable = own.filter(function(e){ return estLines(e) > 0; });
+
+  $("mineNone").hidden = own.length > 0;
+  $("mineBox").hidden  = own.length === 0;
+  if(own.length === 0) return;
+
+  const sel = $("mineAt");
+  const want = usable.map(function(e){ return e.id; }).join(",");
+  if(sel.dataset.built !== want){                  // 목록이 바뀔 때만 다시 만든다
+    sel.dataset.built = want;
+    sel.innerHTML = '<option value="">채굴장 미지정 (집에서 캔다)</option>' +
+      usable.map(function(e){
+        return '<option value="'+e.id+'">'+e.name+' · 회선 '+estLines(e)+
+               '대 · 효율 ×'+e.cool+'</option>';
+      }).join("");
+  }
+  if(sel.value !== (S.mine.at || "")) sel.value = S.mine.at || "";
+
+  const e = minedAt(), lines = e ? estLines(e) : 0, placed = placedCount();
+  $("mLines").textContent = e ? placed+" / "+lines+"대" : "채굴장 미지정";
+  const pct = lines ? Math.min(100, placed/lines*100) : 0;
+  const bar = $("mLineBar");
+  bar.style.width = pct.toFixed(0)+"%";
+  bar.className = (e && e.use === "주거" && placed > lines*0.8) ? "over" : "";
+
+  const cf = coolFactor(), sv = coolSavePerSec();
+  $("mCool").textContent = "×"+cf.toFixed(3)+
+    (cf < 1 ? " (할인)" : cf > 1 ? " (효율 나쁨)" : "");
+  $("mCool").className   = cf < 1 ? "up" : cf > 1 ? "down" : "dimtxt";
+  // sv 가 음수면 할인이 아니라 추가 비용이다 — "+-2원" 으로 찍히지 않게 나눠 쓴다
+  $("mSave").textContent = !M.on ? "0원 (채굴 정지)"
+    : sv >= 0 ? "+"+won(sv)+"원"
+    : won(-sv)+"원 추가 비용";
+  $("mSave").className   = sv >= 0 ? "up" : "down";
+  $("mPenalty").textContent = S.mine.penalty > 0
+    ? "민원 — 할인 정지 "+Math.ceil(S.mine.penalty)+"초 남음" : "정상";
+  $("mPenalty").className   = S.mine.penalty > 0 ? "down" : "up";
+
+  $("mPlace").innerHTML = !e ? "" : RIGS.filter(function(r){ return S.counts[r.id] > 0; })
+    .map(function(r){
+      const n = S.mine.place[r.id] || 0, mx = placeMax(r.id);
+      return '<div class="plc"><div><div class="nm">'+r.name+'</div>'+
+        '<div class="meta">보유 '+S.counts[r.id]+'대 · 배치 가능 '+mx+'대</div></div>'+
+        '<div class="ctl">'+
+          '<button class="ghost sm" data-mp="'+r.id+'" data-mpd="-1"'+(n<=0?" disabled":"")+'>−</button>'+
+          '<b>'+n+'</b>'+
+          '<button class="ghost sm" data-mp="'+r.id+'" data-mpd="1"'+(n>=mx?" disabled":"")+'>+</button>'+
+        '</div></div>';
+    }).join("") || '<div class="sub">배치할 폰이 없습니다</div>';
+}
+renderHooks.push(renderMine);
+
+// 자기 리스너 — 공유 위임 리스너를 고치지 않는다
+document.addEventListener("click", function(ev){
+  const b = ev.target.closest("button");
+  if(b && b.dataset.mp) placeAdd(b.dataset.mp, parseInt(b.dataset.mpd, 10));
+});
+document.addEventListener("change", function(ev){
+  if(ev.target.id === "mineAt") setMineAt(ev.target.value);
+});
 /* ==== [F3:채굴인프라] JS 끝 ==== */
 
 /* ==== [F4:살림살이] JS 시작 ==== */
