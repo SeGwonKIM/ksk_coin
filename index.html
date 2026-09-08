@@ -167,9 +167,10 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
     <h2>세계 지표</h2>
     <div class="grid">
       <div>
-        <div class="row"><span>전기요금 단가</span><b id="rElec">—</b></div>
+        <div class="row"><span>전기요금 단가 (살림용)</span><b id="rElec">—</b></div>
         <div class="row"><span>통신비 (대당 월)</span><b id="rPlan">—</b></div>
-        <div class="sub">폰은 4~18W라 전기는 미미하고, 대수만큼 내는 통신비가 주된 비용이다</div>
+        <div class="sub">채굴 비용은 <b>통신비뿐</b>이다 — 폰 충전 전기는 월 350원 수준이라 청구하지 않는다.
+          전기요금은 냉장고·에어컨이 있는 살림살이에만 매긴다</div>
       </div>
       <div>
         <div class="row"><span>수요 지수</span><b id="rSent">—</b></div>
@@ -193,7 +194,7 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
       <div class="row"><span>내 누적 수령 / 직접 발견</span><b id="mPool">0 KSK / 0회</b></div>
       <div class="row"><span>세계 발행량 / 내 보유 비중</span><b id="mMine">—</b></div>
       <hr>
-      <div class="row"><span>초당 비용 (전기+통신)</span><b id="mCost" class="down">—</b></div>
+      <div class="row"><span>초당 통신비</span><b id="mCost" class="down">—</b></div>
       <div class="row"><span>초당 기대수익</span><b id="mRev" class="up">—</b></div>
       <div class="row"><span>초당 손익</span><b id="mNet">—</b></div>
       <div id="hashline">대기 중…</div>
@@ -212,7 +213,7 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
         <span id="kChg" style="font-size:14px"></span></div>
       <canvas id="chart"></canvas>
       <div class="row"><span>기준가 × 희소성 × 심리</span><b id="kFair">—</b></div>
-      <div class="row"><span>원가하한 (전기요금 기준)</span><b id="kFloor">—</b></div>
+      <div class="row"><span>원가하한 (통신비 기준)</span><b id="kFloor">—</b></div>
       <div class="row"><span>보유 KSK 평가액</span><b id="kValue">—</b></div>
       <div class="row"><span>전송 수수료 (누적)</span><b id="kFee">0.01% · 0원</b></div>
       <div class="btns">
@@ -298,8 +299,8 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
         <div class="row"><span>초당 절감액</span><b id="mSave" class="up">—</b></div>
         <div class="row"><span>민원 상태</span><b id="mPenalty">정상</b></div>
         <div id="mPlace"></div>
-        <div class="sub">건물에 배치한 폰만 효율 할인을 받습니다. 효율 계수는 전기요금과
-          통신비 모두에 곱해집니다 — 제대로 된 건물은 냉각도 좋고 <b>기업 회선 요율</b>을 받기 때문입니다.
+        <div class="sub">건물에 배치한 폰만 효율 할인을 받습니다. 효율 계수는 <b>통신비</b>에 곱해집니다
+          — 제대로 된 건물은 <b>기업 회선 요율</b>을 받기 때문입니다.
           주거용 건물에서 회선을 한도의 80% 넘게 쓰면 민원이 발생합니다.</div>
       </div>
     </div>
@@ -334,7 +335,8 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
     <p>브라우저가 실제로 SHA-256 해시를 돌려 목표값 이하의 논스를 찾습니다. 가짜 진행바가 아니라
        진짜 계산이고, 블록이 나오는 순간은 계산의 결과입니다.</p>
     <p>채굴 장비는 <b>휴대폰</b>입니다. 쓰던 구형 폰 한 대로 시작해 <b>채굴 풀</b>에 참여하고,
-       폰을 늘리거나 좋은 폰으로 바꿔 지분을 키웁니다. 비용은 전기가 아니라 <b>대당 통신비</b>입니다.</p>
+       폰을 늘리거나 좋은 폰으로 바꿔 지분을 키웁니다. 비용은 <b>대당 통신비</b>뿐입니다 —
+       폰 충전 전기는 월 350원 수준이라 청구하지 않습니다.</p>
     <p>이 세계의 시간은 <b>1초가 1시간</b>으로 흐릅니다. 50년을 다 캐려면 약 5일이 걸립니다.</p>
     <div class="notice">⚠ 시뮬레이션입니다. 실제 블록체인에 발행하지 않고, 실제 화폐가 드나들지 않습니다.
       KSK와 게임 내 원화는 현실 가치가 없는 숫자입니다. 투자 조언이 아닙니다.</div>
@@ -444,8 +446,10 @@ const MAX_BLOCKS   = HALVING * ERAS;
 const TARGET_SEC   = 17.52;    // 목표 블록 시간 (실제초 = 게임시간)
 const HOURS_PER_YR = 8760;     // 게임 1년 = 8,760 게임시간
 const BASE_PRICE   = 0.01;     // 시세 기준가 (원/KSK) — 1원 = 100 KSK
-const ELEC_BASE    = 120;      // 전기요금 단가 (원/kWh)
-const KWH_PER_MKSK = 60;       // 원가하한: 백만 KSK 당 기준 전력 (kWh)
+const ELEC_BASE    = 120;      // 전기요금 단가 (원/kWh) — 살림살이(F4) 전용
+// 원가하한 — 채굴 비용이 통신비뿐이므로 그 기준으로 잡는다.
+// "회선 하나(월 5,000원)로 한 달에 70만 KSK 를 캐는 한계 채굴자" 의 원가.
+const KSK_PER_PLAN = 700000;
 const PLAN_COST    = 5000;     // 폰 1대당 월 통신비 (원) — 폰 채굴의 주된 비용
 const MONTH_HOURS  = 730;      // 게임 한 달 (8760 ÷ 12)
 const START_SHARE  = 0.04;     // 폰 한 대로 출발하는 채굴 풀 지분 (4%)
@@ -530,19 +534,23 @@ const M = {
    ───────────────────────────────────────────────────────── */
 const clamp = (v,a,b) => v < a ? a : v > b ? b : v;
 
-const elecRate  = () => ELEC_BASE;                              // 건물 냉각계수는 F3.3 에서 곱한다
+const elecRate  = () => ELEC_BASE;                              // 살림살이(F4) 전기요금에만 쓴다
 const sentiment = () => S.demand;                               // 내부 수요 엔진
 const scarcity  = () => CAP / Math.max(CAP - S.issued, 1);      // 세계가 캘수록 커진다
 const fairPrice = () => BASE_PRICE * scarcity() * sentiment();
-const costFloor = () => elecRate() * KWH_PER_MKSK / 1e6;        // 이 아래로는 아무도 안 판다
+const costFloor = () => PLAN_COST / KSK_PER_PLAN;               // 이 아래로는 아무도 안 판다
 const gameYears = () => S.blocks * TARGET_SEC / HOURS_PER_YR;   // 세계의 경과 연수
 const era       = () => Math.floor(S.blocks / HALVING);
 
 const totalMult  = () => RIGS.reduce((a,r) => a + S.counts[r.id]*r.mult, 0);
+// 폰 소비전력 합계 — 비용에는 쓰지 않고 사양 표시용으로만 남겨 둔다
 const totalKw    = () => RIGS.reduce((a,r) => a + S.counts[r.id]*r.w, 0) / 1000;
 const phoneCount = () => RIGS.reduce((a,r) => a + S.counts[r.id], 0);
-// 1초 = 1게임시간. 전기요금 + 대당 통신비 (통신비가 폰 채굴의 주된 비용)
-const costPerSec = () => elecRate()*totalKw() + PLAN_COST/MONTH_HOURS*phoneCount();
+// 1초 = 1게임시간.
+// 채굴 비용은 **통신비만**이다. 폰 충전 전기는 구형 스마트폰이 월 350원 — 통신비 5,000원의
+// 7% 로, 화면에 한 줄 차지할 값이 아니고 현실에서도 생활 전기에 묻혀 아무도 따로 인식하지
+// 않는다. 전기요금은 체감되는 곳(살림살이 — 냉장고·에어컨 월 42,924원)에만 남겼다.
+const costPerSec = () => PLAN_COST/MONTH_HOURS*phoneCount();
 const planPerSec = () => PLAN_COST/MONTH_HOURS*phoneCount();
 
 function reward(){
@@ -855,7 +863,7 @@ function tickMarket(dt){
   if(S.hist.length > 60) S.hist.shift();
 
   if(M.on){
-    S.cash -= costPerSec() * dt;                      // 전기요금은 채굴 중에만
+    S.cash -= costPerSec() * dt;                      // 통신비는 채굴 중에만
     if(S.cash <= 0){
       S.cash = 0;
       M.on = false; $("bMine").textContent = "채굴 시작";
@@ -889,7 +897,7 @@ function buy(frac){
 /* ─────────────────────────────────────────────────────────
    9. 장비 — 손익분기 시세가 핵심 학습 지점
    ───────────────────────────────────────────────────────── */
-// 이 장비를 한 대 더 살 때, 늘어난 전기요금을 늘어난 수익이 덮으려면 시세가 얼마여야 하는가
+// 이 폰을 한 대 더 살 때, 늘어난 통신비를 늘어난 수익이 덮으려면 시세가 얼마여야 하는가
 function breakEven(rig){
   if(!S.netHash) return null;
   const m0 = totalMult(), m1 = m0 + rig.mult;
@@ -898,9 +906,8 @@ function breakEven(rig){
   const s1 = clamp(h*m1 / S.netHash, 0, 1);
   const dKsk = (s1 - s0) * reward() / TARGET_SEC;     // 초당 추가 KSK
   if(dKsk <= 0) return Infinity;
-  // 폰 한 대를 더 놓을 때 늘어나는 초당 비용 = 전기 + 통신비.
-  // 통신비가 폰 채굴의 주된 비용이므로 빠뜨리면 손익분기가 크게 낙관적으로 나온다.
-  const addCost = elecRate() * (rig.w/1000) + PLAN_COST/MONTH_HOURS;
+  // 폰 한 대를 더 놓을 때 늘어나는 초당 비용 = 통신비 (전기는 청구하지 않는다)
+  const addCost = PLAN_COST/MONTH_HOURS;
   return addCost / dKsk;                              // 초당 추가 비용 ÷ 초당 추가 KSK
 }
 
@@ -921,8 +928,8 @@ function renderRigs(){
     const bad = be !== null && be !== Infinity && be > S.price;
     return '<div class="rig"><div class="top"><div>'+
       '<div class="nm">'+r.name+' <span class="dimtxt">×'+S.counts[r.id]+'</span></div>'+
-      '<div class="meta">속도 '+r.mult+'배 · '+r.w+'W · '+won(r.cost)+'원 · 통신비 '+
-        won(PLAN_COST)+'원/월</div>'+
+      '<div class="meta">속도 '+r.mult+'배 · '+won(r.cost)+'원 · 통신비 '+
+        won(PLAN_COST)+'원/월 <span class="dimtxt">(소비전력 '+r.w+'W — 청구 안 함)</span></div>'+
       '<div class="be">손익분기 시세 <b class="'+(bad?"down":"up")+'">'+beTxt+'</b></div>'+
       '</div><button class="sm" data-rig="'+r.id+'"'+(S.cash<r.cost?" disabled":"")+'>구매</button>'+
       '</div></div>';
@@ -976,7 +983,7 @@ function render(){
                              (HALVING - S.blocks%HALVING).toLocaleString()+" 블록";
 
   const c = costPerSec(), rv = revPerSec(), nt = rv - c;
-  $("mCost").textContent = M.on ? "-"+won(c)+"원 (통신 "+won(planPerSec())+")" : "0원 (정지)";
+  $("mCost").textContent = M.on ? "-"+won(c)+"원 (폰 "+phoneCount()+"대)" : "0원 (정지)";
   $("mRev").textContent  = won(rv)+"원";
   $("mNet").textContent  = (nt>=0?"+":"")+won(nt)+"원";
   $("mNet").className    = nt>=0 ? "up" : "down";
@@ -1067,7 +1074,7 @@ function endGame(complete){
   $("eTitle").textContent = complete ? "발행 완료" : "파산";
   $("eDesc").textContent  = complete
     ? "21,000 KSK 가 모두 발행됐습니다. 더 캘 코인이 없습니다."
-    : "현금이 바닥나고 팔 코인도 남지 않았습니다. 전기요금이 수익을 넘어섰습니다.";
+    : "현금이 바닥나고 팔 코인도 남지 않았습니다. 비용이 수익을 넘어섰습니다.";
   $("eStats").innerHTML =
     '<div class="row"><span>내 총 수령량</span><b>'+ksk(S.mined)+' KSK</b></div>'+
     '<div class="row"><span>세계 총 발행량</span><b>'+ksk(S.issued)+' KSK</b></div>'+
@@ -1102,7 +1109,7 @@ $("bAgain").onclick = reset;
 
 // (pausedByHide 는 위 감시견도 쓴다 — 선언은 아래 var 로 끌어올려져 있다)
 // 휴대폰에서 화면이 꺼지거나 앱을 전환하면 requestAnimationFrame 이 멈춘다.
-// 그대로 두면 채굴은 안 되는데 setInterval 만 살아 전기요금이 새어 나간다.
+// 그대로 두면 채굴은 안 되는데 setInterval 만 살아 통신비가 새어 나간다.
 // 그래서 숨겨지면 채굴을 접고, 돌아오면 자동으로 재개한다.
 var pausedByHide = false;   // var: 위쪽 watchdog/toggleMine 에서도 쓰므로 호이스팅이 필요하다
 document.addEventListener("visibilitychange", function(){
@@ -1375,11 +1382,10 @@ document.addEventListener("change", function(ev){
 // F3 — 건물이 채굴장이다. "어디서 캐는가"가 "얼마를 버는가"를 결정한다.
 //
 // 설계 변경 근거: 스킬은 cool 을 '냉각 계수'로 두고 전기요금에만 곱하게 했다.
-// 그건 채굴 장비가 GPU·ASIC 팜(2~28kW)이던 시절의 전제다. 폰 채굴로 바뀌자
-// 폰은 4~18W 라 전기가 총비용의 6~14% 밖에 안 되고, 냉각만으로는 데이터센터에서도
-// 총비용이 6% 밖에 줄지 않아 건물을 살 이유가 사라졌다.
-// → cool 을 '운영 효율 계수'로 넓혀 전기 + 통신비 모두에 곱한다. 근거도 현실적이다:
-//   제대로 된 건물은 냉각만 좋은 게 아니라 기업 회선 요율을 받는다.
+// 그건 채굴 장비가 GPU·ASIC 팜(2~28kW)이던 시절의 전제다. 폰 채굴로 바뀐 뒤 전기요금은
+// 아예 청구하지 않게 됐다(구형 폰 월 350원 — 체감되지 않는 값이라 뺐다).
+// → cool 을 '운영 효율 계수'로 두고 **통신비**에 곱한다. 근거는 기업 회선 요율이다:
+//   데이터센터는 회선당 단가가 가정용 요금제보다 훨씬 낮다.
 // 그리고 kw 를 그대로 쓰면 한도가 조여지지 않으므로(원룸 300W = 태블릿 16대)
 // 회선 수 한도로 환산한다.
 const LINES_PER_KW = 6;      // kW → 동시 개통 가능 회선 수
@@ -1445,7 +1451,7 @@ tickHooks.push(function(dt){
   if(S.mine.penalty > 0) S.mine.penalty = Math.max(0, S.mine.penalty - dt);
   if(!M.on) return;
 
-  // F0 가 이미 기준 운영비(전기+통신)를 청구했다. 여기서는 그 차액만 조정한다.
+  // F0 가 이미 기준 통신비를 청구했다. 여기서는 그 차액만 조정한다.
   // coolFactor() < 1 이면 이 식은 현금을 더해 준다 — 할인이므로 의도한 부호다.
   S.cash -= costPerSec() * (coolFactor() - 1) * dt;
 
