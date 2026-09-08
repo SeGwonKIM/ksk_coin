@@ -38,6 +38,37 @@ typeof myNewFunction    // "function" 이어야 한다
 `localStorage` 는 `data:` URL 에서 차단된다. 예외가 나는 것이 정상이고, 코드가
 `try/catch` 로 삼켜 화면이 깨지지 않아야 한다. **저장 기능 자체는 이 창에서 검증할 수 없다.**
 
+## 3.5 게임 루프가 실제로 등록됐는지 (놓치기 쉽다)
+
+로드 중 오류가 나면 스크립트가 끊겨 **맨 아래 `setInterval` 이 등록되지 않는다.**
+그런데 화면은 초기 HTML 이라 멀쩡해 보이고, 콘솔 캡처에도 안 잡힐 수 있다.
+
+```js
+typeof last            // "number" 여야 한다. "undefined" 면 세계가 멈춘 것이다
+```
+
+`undefined` 면 초기화 함수를 직접 불러 오류를 꺼낸다.
+
+```js
+let err=null; try{ initTabs(); }catch(e){ err=e.name+': '+e.message; } err
+```
+
+`const`/`let` 을 쓰는 함수를 **선언보다 위에서 호출하면** TDZ 오류가 난다
+(`Cannot access 'X' before initialization`). 실제로 이걸로 세계가 멈춘 적이 있다.
+초기화 호출은 **스크립트 맨 끝**에 둔다.
+
+## 3.6 화면을 눈으로 본다 (상태값만 읽지 말 것)
+
+`JSON.stringify(S)` 로 상태만 확인하면 **표시 버그를 전부 놓친다.**
+필드 이름을 바꾼 뒤 `undefined` 나 `NaN` 이 화면에 찍히는 것이 대표적이다.
+
+```js
+[...document.querySelectorAll('#rigs .rig')].map(d => d.textContent)
+```
+
+반드시 **스크린샷을 한 장 찍고**, 그 안에 `undefined` `NaN` `null` `[object`
+가 없는지 확인한다. 실제로 `undefinedkW` 와 `손익분기 시세 NaN원` 을 이렇게 잡았다.
+
 ## 4. 돌려 보고 상태를 읽는다
 
 ```js
@@ -65,6 +96,8 @@ JSON.stringify({
 | 항목 | 기대값 |
 |---|---|
 | 콘솔 오류 | **0건** |
+| `typeof last` | **"number"** — 게임 루프가 돌고 있다 |
+| 화면에 `undefined`/`NaN` | **없음** (스크린샷으로 확인) |
 | 1단계 CPU 점유 | 약 6% (PC) / 4% (모바일) |
 | 1단계 풀 지분 | **4% ± 0.3** |
 | 불변식 | `S.mined <= S.issued` — **반드시 true** |

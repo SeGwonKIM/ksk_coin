@@ -50,6 +50,12 @@ button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .bar{height:6px;background:#0b0f14;border-radius:3px;overflow:hidden;margin-top:8px}
 .bar>div{height:100%;background:var(--gold);width:0}
 
+#tabs{display:flex;gap:6px;margin-top:12px;overflow-x:auto;padding-bottom:2px}
+#tabs button{background:#21262d;border:1px solid var(--line);color:var(--dim);
+  padding:8px 14px;border-radius:8px;white-space:nowrap;font-size:13px;font-weight:600}
+#tabs button:hover{background:#2d333b;color:var(--txt)}
+#tabs button[aria-selected="true"]{background:#1f6feb;border-color:#1f6feb;color:#fff}
+
 #chart{width:100%;height:70px;display:block;background:#0b0f14;border-radius:5px;margin:8px 0}
 .price{font-size:26px;font-variant-numeric:tabular-nums}
 .up{color:var(--up)}.down{color:var(--down)}.dimtxt{color:var(--dim)}
@@ -111,6 +117,8 @@ button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
     <div class="sub">진짜 SHA-256 작업증명으로 캐고, 실제 환율과 시세가 반영되는 가상경제 — 시뮬레이션입니다</div>
   </header>
 
+  <div id="tabs" role="tablist"></div>
+
   <div id="hud">
     <div class="stat"><b>보유 KSK</b><i id="sCoin">0</i></div>
     <div class="stat"><b>현금 (원)</b><i id="sCash">0</i></div>
@@ -121,7 +129,7 @@ button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
     <div class="stat"><b>세계 경과</b><i id="sYear">0년</i></div>
   </div>
 
-  <div class="panel">
+  <div class="panel" data-tab="mine">
     <h2>세계 지표</h2>
     <div class="grid">
       <div>
@@ -140,7 +148,7 @@ button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 
   <div class="grid" style="margin-top:12px">
 
-    <div class="panel">
+    <div class="panel" data-tab="mine">
       <h2 id="mTitle">1단계 — 초기 분배 (가벼운 작업증명)</h2>
       <div class="row"><span>합의 방식</span><b id="mMode">PoW · 절약 모드</b></div>
       <div class="row"><span>기기 부하</span><b id="mLoad" class="up">—</b></div>
@@ -164,7 +172,7 @@ button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
       <div class="sub" id="mHint">—</div>
     </div>
 
-    <div class="panel">
+    <div class="panel" data-tab="market">
       <h2>시장</h2>
       <div class="price"><span id="kPrice">0</span> <span style="font-size:14px" class="dimtxt">원</span>
         <span id="kChg" style="font-size:14px"></span></div>
@@ -181,7 +189,7 @@ button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
       <div class="sub">팔면 시세가 눌리고, 사면 밀려 올라갑니다 (슬리피지)</div>
     </div>
 
-    <div class="panel" id="stakePanel" hidden>
+    <div class="panel" id="stakePanel" data-tab="mine" hidden>
       <h2>스테이킹 — 보안의 담보는 전기가 아니라 돈이다</h2>
       <div class="row"><span>예치한 스테이크</span><b id="pStake">0 KSK</b></div>
       <div class="row"><span>검증자 좌석</span><b id="pSeats">0좌</b></div>
@@ -196,13 +204,28 @@ button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
       <div class="sub">검증을 멈추면 스테이크가 조금씩 깎입니다(미가동 누출). 부정하면 몰수됩니다.</div>
     </div>
 
-    <div class="panel">
+    <div class="panel" data-tab="mine">
       <h2 id="rigTitle">채굴 장비 — 휴대폰</h2>
       <div id="rigs"></div>
       <div class="sub">손익분기 시세가 현재 시세보다 높으면 그 장비는 지금 적자입니다</div>
     </div>
 
-    <div class="panel">
+    <div class="panel" data-tab="asset">
+      <h2>순자산</h2>
+      <div class="price"><span id="aNet">0</span> <span style="font-size:14px" class="dimtxt">원</span></div>
+      <hr>
+      <div class="row"><span>현금</span><b id="aCash">—</b></div>
+      <div class="row"><span>보유 KSK 평가액</span><b id="aCoin">—</b></div>
+      <div class="row"><span>스테이크 평가액</span><b id="aStake">—</b></div>
+      <div class="row" id="aEstateRow" hidden><span>부동산 평가액</span><b id="aEstate">—</b></div>
+      <div class="row" id="aGoodsRow" hidden><span>살림살이 잔존가치</span><b id="aGoods">—</b></div>
+      <hr>
+      <div class="row"><span>세계 발행량 / 내 보유 비중</span><b id="aFrac">—</b></div>
+      <div class="row"><span>누적 수수료</span><b id="aFee">—</b></div>
+      <div class="sub">부동산·살림살이는 해당 기능이 붙으면 자동으로 합산됩니다</div>
+    </div>
+
+    <div class="panel" data-tab="asset">
       <h2>원장</h2>
       <div id="log"></div>
     </div>
@@ -514,7 +537,9 @@ function merge(){
   stake(MIN_STAKE * Math.floor(S.coin / MIN_STAKE));
   log("<b>더 머지</b> — 작업증명을 끝내고 지분증명으로 전환했습니다. "+
       "이제 기기는 12초에 서명 한 번만 합니다");
-  renderRigs(); save();
+  renderRigs();
+  if(window.__tabShow) window.__tabShow("mine");   // 스테이킹 패널을 바로 보여준다
+  save();
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -765,7 +790,10 @@ function breakEven(rig){
   const s1 = clamp(h*m1 / S.netHash, 0, 1);
   const dKsk = (s1 - s0) * reward() / TARGET_SEC;     // 초당 추가 KSK
   if(dKsk <= 0) return Infinity;
-  return (elecRate() * rig.kw) / dKsk;                // 초당 추가 요금 ÷ 초당 추가 KSK
+  // 폰 한 대를 더 놓을 때 늘어나는 초당 비용 = 전기 + 통신비.
+  // 통신비가 폰 채굴의 주된 비용이므로 빠뜨리면 손익분기가 크게 낙관적으로 나온다.
+  const addCost = elecRate() * (rig.w/1000) + PLAN_COST/MONTH_HOURS;
+  return addCost / dKsk;                              // 초당 추가 비용 ÷ 초당 추가 KSK
 }
 
 function buyRig(rig){
@@ -785,7 +813,8 @@ function renderRigs(){
     const bad = be !== null && be !== Infinity && be > S.price;
     return '<div class="rig"><div class="top"><div>'+
       '<div class="nm">'+r.name+' <span class="dimtxt">×'+S.counts[r.id]+'</span></div>'+
-      '<div class="meta">속도 '+r.mult+'배 · '+r.kw+'kW · '+won(r.cost)+'원</div>'+
+      '<div class="meta">속도 '+r.mult+'배 · '+r.w+'W · '+won(r.cost)+'원 · 통신비 '+
+        won(PLAN_COST)+'원/월</div>'+
       '<div class="be">손익분기 시세 <b class="'+(bad?"down":"up")+'">'+beTxt+'</b></div>'+
       '</div><button class="sm" data-rig="'+r.id+'"'+(S.cash<r.cost?" disabled":"")+'>구매</button>'+
       '</div></div>';
@@ -997,6 +1026,85 @@ renderRigs();
 
 
 /* ─────────────────────────────────────────────────────────
+   12.5 탭 네비게이션 (F7.2) 과 순자산 대시보드 (F7.3)
+   버튼은 실제로 존재하는 data-tab 값만 훑어 자동 생성한다. 그래서 나중에
+   부동산·살림·직업 패널이 붙으면 data-tab 만 달아도 탭이 저절로 생긴다.
+   ───────────────────────────────────────────────────────── */
+const TAB_KEY   = "ksk_coin_tab";
+const TAB_ORDER = ["mine","market","estate","home","job","asset"];
+const TAB_LABEL = { mine:"채굴", market:"거래소", estate:"부동산",
+                    home:"살림", job:"직업", asset:"자산" };
+
+function initTabs(){
+  const groups = {};
+  document.querySelectorAll("[data-tab]").forEach(function(el){
+    (groups[el.dataset.tab] = groups[el.dataset.tab] || []).push(el);
+  });
+  const keys = TAB_ORDER.filter(function(k){ return groups[k]; });
+  if(keys.length < 2) return;                 // 탭이 하나면 굳이 나누지 않는다
+
+  let cur = keys[0];
+  try{ const v = localStorage.getItem(TAB_KEY); if(v && groups[v]) cur = v; }catch(e){}
+
+  const bar = $("tabs");
+  bar.innerHTML = "";
+  keys.forEach(function(k){
+    const b = document.createElement("button");
+    b.textContent = TAB_LABEL[k] || k;
+    b.setAttribute("role", "tab");
+    b.dataset.tabbtn = k;
+    bar.appendChild(b);
+  });
+
+  function show(k){
+    cur = k;
+    keys.forEach(function(x){
+      const on = x === k;
+      // stakePanel 은 지분증명 전환 전에는 스스로 숨는다 — 탭이 그걸 되살리지 않게 한다
+      groups[x].forEach(function(el){ if(el.id !== "stakePanel") el.hidden = !on; });
+      bar.querySelector('[data-tabbtn="'+x+'"]').setAttribute("aria-selected", on ? "true" : "false");
+    });
+    if(groups.mine.indexOf($("stakePanel")) >= 0)
+      $("stakePanel").hidden = !(k === "mine" && S.mode === "pos");
+    try{ localStorage.setItem(TAB_KEY, k); }catch(e){}
+  }
+
+  bar.addEventListener("click", function(e){
+    const b = e.target.closest("[data-tabbtn]");
+    if(b) show(b.dataset.tabbtn);
+  });
+  show(cur);
+  window.__tabShow = show;                    // 전환 후 스테이킹 패널을 되살리는 데 쓴다
+}
+
+// 부동산·살림살이가 붙으면 estateValue() / hhValue() 를 전역으로 노출한다 (계약 §6)
+function netWorth(){
+  let v = S.cash + (S.coin + S.staked) * S.price;
+  if(typeof estateValue === "function") v += estateValue() || 0;
+  if(typeof hhValue     === "function") v += hhValue()     || 0;
+  return v;
+}
+
+function renderAssets(){
+  if(!$("aNet")) return;
+  $("aNet").textContent   = won(netWorth());
+  $("aCash").textContent  = won(S.cash)+"원";
+  $("aCoin").textContent  = ksk(S.coin)+" KSK · "+won(S.coin*S.price)+"원";
+  $("aStake").textContent = ksk(S.staked)+" KSK · "+won(S.staked*S.price)+"원";
+  if(typeof estateValue === "function"){
+    $("aEstateRow").hidden = false;
+    $("aEstate").textContent = won(estateValue() || 0)+"원";
+  }
+  if(typeof hhValue === "function"){
+    $("aGoodsRow").hidden = false;
+    $("aGoods").textContent = won(hhValue() || 0)+"원";
+  }
+  $("aFrac").textContent = ksk(S.issued)+" KSK / "+
+    (S.issued > 0 ? ((S.coin+S.staked)/S.issued*100).toFixed(2) : "0.00")+"%";
+  $("aFee").textContent = won(S.fees)+"원";
+}
+
+/* ─────────────────────────────────────────────────────────
    13. 병렬 작업용 예약 구역
    각 스킬은 자기 구역 안에만 코드를 쓴다. 구역 밖을 고쳐야 하면
    ksk-contract 스킬의 '공유 접점' 절차를 따른다.
@@ -1030,10 +1138,16 @@ setInterval(function(){
   if(!S.over){ tickWorld(dt); tickMarket(dt); runHooks(tickHooks, dt); }
   render();
   renderRigs();
+  renderAssets();
   runHooks(renderHooks);
 }, 500);
 
 setInterval(save, 5000);
+
+// 탭 초기화는 맨 마지막에 — TAB_ORDER 같은 const 가 선언된 뒤라야 한다.
+// 앞에서 부르면 TDZ(temporal dead zone) 오류로 스크립트가 끊기고
+// 위의 setInterval 이 등록되지 않아 세계가 아예 멈춘다.
+initTabs();
 </script>
 </body>
 </html>
