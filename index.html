@@ -410,7 +410,7 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
       <h2>세계 시각과 월말 정산</h2>
       <div class="clock" id="finClock">1년차 1월 1일</div>
       <div class="row"><span>다음 정산까지</span><b id="finNext">—</b></div>
-      <div class="row"><span>보유세 (평가액의 0.15%/월)</span><b id="finTax" class="down">—</b></div>
+      <div class="row"><span>보유세 (주거 연 0.2% · 상가·오피스 0.3% · 나대지 0.8% · 12억 초과 종부세)</span><b id="finTax" class="down">—</b></div>
       <div class="row"><span>생활비 수준</span><b id="finLiving">—</b></div>
       <div class="row"><span>지금 순현금흐름</span><b id="finFlow">—</b></div>
       <div class="btns" id="finLivBtns"></div>
@@ -1454,44 +1454,48 @@ const BROKER  = 0.005;   // 중개수수료 0.5% — 중개사 자격이 있으�
 
 // `real` 은 **실제 참고 시세(억원)** 다. 화면에 함께 보여 준다.
 // 부동산끼리의 상대 비율은 실제를 그대로 지켰다 (타워팰리스 39억 : 관악우성 11.5억 = 3.41 : 1).
-// 다만 **생활비 대비 절대 배율은 압축**했다 — 현실에서 아파트는 월 생활비의 500~1,000배라
-// 그대로 담으면 50년 게임에서 한 채 사고 끝난다. 환산은 1억원 = 500만 기본 KSK.
 // 실시간 시세 연동은 백서 §9 대로 하지 않는다. 이 값은 고정 참고치다.
 // 1 KSK = 100만원이므로 **1억원 = 100 KSK** — 압축 없는 정직한 환산이다.
 // 게임가는 언제나 `실제 참고 시세 × 100` 이고, 화면에 둘을 나란히 보여 준다.
 //
 // 그 결과 채굴만으로는 아파트를 살 수 없다 (50년 총 채굴 400 KSK vs 관악우성 1,150 KSK).
 // 현실도 그렇다 — 월급·임대·추천 보상이 함께 있어야 도달한다.
-// 채굴+알바+원룸임대 기준 도달 시점: 원룸 0.6년 · 오피스텔 1.7년 · 수원 5년 ·
-// 관악우성 8.8년 · 여의도 오피스 23년 · 타워팰리스 29.9년 — 50년 아크에 맞는 곡선이다.
+//
+// `yrPct` 는 **연 임대수익률**(매매가 대비 순월세×12)이고 실제 시장값을 그대로 썼다.
+// 현실의 핵심은 **역전**이다 — 싼 원룸이 연 6.0%, 39억 타워팰리스가 연 1.8%.
+// 비싼 집은 임대료가 아니라 시세로 버는 자산이라 현금흐름이 거의 남지 않는다.
+// 그래서 임대만으로 부자가 되는 길은 막혀 있고, 이건 균형 조정이 아니라 현실 그대로다.
 const EOK = 100;
 const ESTATES = [
   { id:"oneroom",   name:"원룸",              area:"부산 사하",   use:"주거",   py:8,
-    real:0.8,  rentPct:0.0165, kw:0.3, cool:1.15 },
+    real:0.8,  yrPct:0.060, feePy:0.8,  kw:0.3, cool:1.15 },
   { id:"officetel", name:"오피스텔",          area:"서울 금천",   use:"주거",   py:12,
-    real:2.2,  rentPct:0.0130, kw:0.6, cool:1.10 },
+    real:2.2,  yrPct:0.050, feePy:1.0,  kw:0.6, cool:1.10 },
   { id:"villa_hd",  name:"해운대 빌라",       area:"부산 해운대", use:"주거",   py:24,
-    real:4.5,  rentPct:0.0115, kw:0.9, cool:1.08 },
+    real:4.5,  yrPct:0.038, feePy:0.7,  kw:0.9, cool:1.08 },
   { id:"apt_suwon", name:"수원 아파트",       area:"경기 수원",   use:"주거",   py:32,
-    real:6.5,  rentPct:0.0105, kw:1.2, cool:1.05 },
+    real:6.5,  yrPct:0.028, feePy:0.8,  kw:1.2, cool:1.05 },
   { id:"apt_gwanak",name:"관악 우성아파트",   area:"서울 관악",   use:"주거",   py:30,
-    real:11.5, rentPct:0.0095, kw:1.1, cool:1.05 },
+    real:11.5, yrPct:0.024, feePy:0.8,  kw:1.1, cool:1.05 },
   { id:"jeju_land", name:"제주 토지",         area:"제주 서귀포", use:"토지",   py:300,
-    real:15.0, rentPct:0.0030, kw:0,   cool:1.00 },
+    real:15.0, yrPct:0.010, feePy:0.05, kw:0,   cool:1.00 },
   { id:"shop_mapo", name:"마포 상가",         area:"서울 마포",   use:"상가",   py:20,
-    real:18.0, rentPct:0.0140, kw:3.0, cool:1.00 },
+    real:18.0, yrPct:0.045, feePy:1.0,  kw:3.0, cool:1.00 },
   { id:"office_ydp",name:"여의도 오피스",     area:"서울 여의도", use:"오피스", py:60,
-    real:30.0, rentPct:0.0135, kw:12,  cool:0.85 },
+    real:30.0, yrPct:0.043, feePy:1.5,  kw:12,  cool:0.85 },
   { id:"tower_palace", name:"타워팰리스",     area:"서울 도곡",   use:"주거",   py:50,
-    real:39.0, rentPct:0.0085, kw:8,   cool:0.80 }
+    real:39.0, yrPct:0.018, feePy:2.0,  kw:8,   cool:0.80 }
 ];
 // 기본 KSK 가격과 임대료·관리비를 실제 참고 시세에서 파생시킨다
 ESTATES.forEach(function(e){
   e.price = Math.round(e.real * EOK);
   // 1 KSK = 100만원이라 정수로 반올림하면 100만원 단위로 뭉개진다.
   // (원룸 임대료 1.32 → 1, 관리비 0.343 → 0 으로 사라졌다) 최소 단위까지 남긴다.
-  e.rent  = q6(e.price * e.rentPct);   // 월 임대료 (수익률은 용도별로 다르다)
-  e.fee   = q6(e.rent * 0.26);         // 월 관리비
+  // 월 임대료 = 매매가 × 연 수익률 ÷ 12. 연 수익률은 실제 시장값을 그대로 썼다 —
+  // 원룸·오피스텔이 높고 고가 아파트가 낮은 역전이 현실의 핵심이다.
+  e.rent  = q6(e.price * e.yrPct / 12);
+  // 관리비는 임대료가 아니라 **면적**에 비례한다 (평당 월 관리비, 만원 = 0.01 KSK).
+  e.fee   = q6(e.feePy * e.py * 0.01);
 });
 
 const estFind  = id => ESTATES.find(function(x){ return x.id === id; });
@@ -1800,7 +1804,8 @@ function estCard(e, owned){
       '<div class="meta">매입 '+ksk(o.price)+' KSK ('+o.yr+'년차) → 현재 '+ksk(p)+' KSK'+
         ' <span class="dimtxt">· 실제 참고 '+e.real+'억원</span></div>'+
       '<div class="num">평가손익 <b class="'+(up?"up":"down")+'">'+(up?"+":"")+ksk(gain)+' KSK</b>'+
-        ' · 월 임대 '+ksk(e.rent)+' − 관리비 '+ksk(e.fee)+'</div>'+
+        ' · 월 임대 '+ksk(e.rent)+' − 관리비 '+ksk(e.fee)+
+        ' <span class="dimtxt">(연 '+(e.yrPct*100).toFixed(1)+'%)</span></div>'+
       '</div><button class="sell sm" data-sellre="'+e.id+'">매도</button></div></div>';
   }
   const can = S.coin >= total;
@@ -1812,7 +1817,10 @@ function estCard(e, owned){
     '<div class="num">담보 LTV '+(estLtv(e)*100).toFixed(1)+'% → 대출 '+
       ksk(estPrice(e)*estLtv(e))+' KSK · 이자 '+(estRate(e)*100).toFixed(1)+'%</div>'+
     '<div class="num">월 임대 '+ksk(e.rent)+' − 관리비 '+ksk(e.fee)+
-      ' = <b class="up">'+ksk(e.rent-e.fee)+' KSK/월</b> · 수용 '+e.kw+'kW · 냉각 ×'+e.cool+'</div>'+
+      ' = <b class="up">'+ksk(e.rent-e.fee)+' KSK/월</b>'+
+      ' <span class="dimtxt">(연 '+(e.yrPct*100).toFixed(1)+'% · 보유세 −'+
+        ksk(typeof estTaxPerMonth==="function"?estTaxPerMonth(e):0)+'/월)</span></div>'+
+    '<div class="num dimtxt">수용 '+e.kw+'kW · 냉각 ×'+e.cool+'</div>'+
     '</div><button class="buy sm" data-buyre="'+e.id+'"'+(can?"":" disabled")+'>매입</button>'+
     '</div></div>';
 }
@@ -2343,7 +2351,18 @@ document.addEventListener("change", function(ev){
 //
 // 시계도 하나만 쓴다. dt 로 따로 세는 시계를 두면 블록 기반 gameYears() 와 드리프트가 생기므로
 // S.blocks 에서 파생시킨다. 한 달 = 730 게임시간 = 41.67 블록.
-const TAX_RATE = 0.0015;   // 보유세 — 부동산 평가액의 0.15%/월 (게임 균형용 근사)
+// 보유세 — 실효세율을 **연 기준**으로 두고 월로 나눈다. 전에는 월 0.15%(= 연 1.8%)였고
+// 이건 현실의 7배라, 임대수익률을 현실값으로 내리면 부동산이 무조건 적자가 된다.
+//
+// 재산세는 공시가(시가의 약 70%) × 공정시장가액비율(60%) × 세율 이라서
+// **시가 대비 실효세율**로 환산하면 주거가 연 0.2% 수준이고, 용도별로 다르다.
+//  · 상가·오피스는 건물분 + 토지분 별도합산이 붙어 더 무겁다 (연 0.3%)
+//  · 나대지는 종합합산 과세라 훨씬 무겁다 (연 0.8%) — 놀리는 땅에 세금이 붙는 구조
+//  · 주거는 12억(= 1,200 KSK) **초과분**에 종합부동산세를 따로 가산한다
+const TAX_YR_BY_USE = { "주거":0.0020, "오피스":0.0030, "상가":0.0030, "토지":0.0080 };
+const TAX_YR_DEF  = 0.0020;   // 용도가 표에 없을 때
+const TAX_HOME_HI = 1200;     // 종부세 과세 기준 12억원
+const TAX_HOME_YR = 0.0040;   // 12억 초과분 가산 연세율
 
 // 생활비 — 사람이 먹고사는 비용. 이게 없으면 알바 월급만으로도 흑자가 나서
 // 경제가 성립하지 않는다(실제로 그랬다). 통신비·전기요금은 생활비의 일부일 뿐이다.
@@ -2377,7 +2396,23 @@ const gYear  = () => Math.floor(worldMonths() / 12) + 1;
 const gMonth = () => Math.floor(worldMonths()) % 12 + 1;
 const gDay   = () => Math.floor((worldMonths() % 1) * 30) + 1;
 
-const holdingTax = () => (typeof estateValue === "function" ? estateValue() : 0) * TAX_RATE;
+// 건물 한 채의 월 보유세. F2 가 없으면 부르는 쪽이 없으니 guard 만 둔다.
+function estTaxPerMonth(e){
+  const v = typeof estPrice === "function" ? estPrice(e) : 0;
+  const r = TAX_YR_BY_USE[e.use] !== undefined ? TAX_YR_BY_USE[e.use] : TAX_YR_DEF;
+  let t = v * r;                                      // 재산세는 가액 전체에 붙는다
+  if(e.use === "주거" && v > TAX_HOME_HI)
+    t += (v - TAX_HOME_HI) * TAX_HOME_YR;             // 종부세는 초과분에만 더 붙는다
+  return t / 12;
+}
+function holdingTax(){
+  // F2 가 아직 없거나 목록을 못 읽으면 평가액 전체에 기본 세율만 매긴다
+  if(typeof estFind !== "function" || !S.re || !S.re.owned)
+    return (typeof estateValue === "function" ? estateValue() : 0) * TAX_YR_DEF / 12;
+  return S.re.owned.reduce(function(a, o){
+    const e = estFind(o.id); return a + (e ? estTaxPerMonth(e) : 0);
+  }, 0);
+}
 
 function settle(){
   const mo = MONTH_HOURS;
@@ -2416,6 +2451,9 @@ function netFlowPerSec(){
   if(M.on) v -= costPerSec() * (typeof coolFactor === "function" ? coolFactor() : 1);
   if(typeof hhElecPerSec === "function") v -= hhElecPerSec();
   if(typeof loanIntPerSec === "function") v -= loanIntPerSec();   // 대출 이자 (F2.9)
+  // 보유세는 월말에 한꺼번에 걷지만, 흐름 판정에서 빼면 나대지처럼 세금이 무거운 자산을
+  // 들고 있을 때 흑자로 오판한다. 월액을 초당으로 환산해 반영한다 (이중 징수 아님 — 표시·판정용)
+  v -= holdingTax() / MONTH_HOURS;
   v -= livingPerSec();
   return v;
 }
