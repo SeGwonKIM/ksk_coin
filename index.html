@@ -250,14 +250,18 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
       <div class="row"><span>기준가 × 희소성 × 심리</span><b id="kFair">—</b></div>
       <div class="row"><span>원가하한 (통신비 기준)</span><b id="kFloor">—</b></div>
       <div class="row"><span>총 발행 / 채굴 발행</span><b id="kIssued">—</b></div>
-      <div class="row"><span>재단 잠금 (사전 채굴)</span><b id="kTreasury" class="dimtxt">—</b></div>
+      <div class="row"><span>재단 운영 자금 (직원 임금 등)</span><b id="kTrOps" class="dimtxt">—</b></div>
+      <div class="row"><span>생태계 자금 (추천·해커톤·기부·서버)</span><b id="kTrEco" class="dimtxt">—</b></div>
       <div class="row"><span><b>유통 공급</b> (잠금·소각 제외)</span><b id="kCirc">—</b></div>
       <div class="row"><span><b>물가 배수</b> (코인 구매력)</span><b id="kIdx">—</b></div>
       <div class="row"><span>영구 소각 (수수료·세금)</span><b id="kBurn" class="down">—</b></div>
-      <div class="sub"><b>사전 채굴 5억 KSK는 재단이 관리하며 잠겨 있습니다</b> —
-        유통되지도, 예치되지도, 희소성 계산에 들어가지도 않습니다. 총 발행 55억 중
+      <div class="sub"><b>사전 채굴 10억 KSK는 재단이 관리하며 잠겨 있습니다</b> —
+        유통되지도, 예치되지도, 희소성 계산에 들어가지도 않습니다. 총 발행 60억 중
         <b>채굴로 나오는 것은 50억</b>이고, 반감기 25회·50년 일정은 그 50억에만 걸려 있습니다.
-        재단 물량을 쓰는 기능은 없습니다(회계로만 존재합니다).</div>
+        <br><b>운영 자금 5억</b>은 직원 임금·법인 운영용으로, 이 세계에 재단 직원이 없어
+        지출 기능이 없습니다. <b>생태계 자금 5억</b>은 추천 등록 보너스·해커톤 지원·기타 기부·
+        서버 운영용이고, 그중 <b>추천 등록 보너스만 실제로 지출</b>됩니다 —
+        나머지는 이 세계에 등장하지 않는 활동이라 용도 표기로 둡니다.</div>
       <div class="sub"><b>코인이 유일한 화폐입니다.</b> 원화로 바꾸는 거래소가 없습니다 —
         집·가전·생활비·월급 전부 KSK로 직접 오갑니다. 코인이 귀해지면(가치 지수↑)
         <b>물가 배수가 내려가</b> 같은 물건을 더 적은 코인으로 삽니다.
@@ -458,16 +462,20 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
     <!-- ==== [F8:직업] 패널 끝 ==== -->
     <!-- ==== [F9:추천인] 패널 시작 ==== -->
     <div class="panel" data-tab="job">
-      <h2>추천인 — 초대한 사람이 100 KSK를 모으면 10 KSK</h2>
+      <h2>추천인 — 초대받은 사람이 등록 즉시 10 KSK</h2>
       <div class="row"><span>초대한 사람</span><b id="invCount">0명</b></div>
-      <div class="row"><span>받은 추천 보상</span><b id="invPaid" class="up">0 KSK</b></div>
-      <div class="row"><span>다음 초대까지</span><b id="invNext">가능</b></div>
+      <div class="row"><span>지급한 등록 보너스</span><b id="invPaid" class="up">0 KSK</b></div>
+      <div class="row"><span>생태계 자금 잔액</span><b id="invEco" class="dimtxt">—</b></div>
+      <div class="row"><span>다음 초대</span><b id="invNext">가능</b></div>
       <div class="btns"><button id="invBtn" class="buy sm">친구 초대</button></div>
       <div id="invList"></div>
-      <div class="sub">초대한 사람도 폰으로 캡니다 — 기본 지급 50 KSK로 시작해
-        스스로 모으고, 누적이 <b>100 KSK</b>에 닿는 순간 추천인에게 <b>10 KSK</b>가 지급됩니다
-        (한 사람당 한 번). 보상은 발행량에서 나오므로 총 상한 50억 KSK를 넘지 않습니다.
-        초대는 <b>게임 한 달에 한 명</b>까지 — 전화번호부가 무한하지 않습니다.
+      <div class="sub"><b>보상은 초대받은 사람에게 갑니다</b> — 등록 즉시 10 KSK를 받아
+        기본 지급 50 KSK와 함께 60 KSK로 시작합니다. 추천인에게 돌아오는 보상은 없습니다.
+        추천 제도의 목적이 <b>신규 유입 지원</b>이라면 지원금은 신규에게 가는 것이 맞습니다.
+        <br>재원은 <b>생태계 자금 5억 KSK</b>입니다 — 새로 발행하지 않고 이미 발행된 물량을
+        옮기므로 총 발행 60억은 변하지 않습니다.
+        초대는 <b>게임 한 달에 한 명 · 최대 20명</b>까지 — 전화번호부가 무한하지 않습니다.
+        <br>초대한 사람도 폰으로 캐고 <b>반감기를 함께 받습니다</b>.
         이 세계의 다른 참여자는 시뮬레이션된 값이고 실제 사용자가 아닙니다.</div>
     </div>
     <!-- ==== [F9:추천인] 패널 끝 ==== -->
@@ -487,15 +495,18 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
        폰을 늘리거나 좋은 폰으로 바꿔 지분을 키웁니다. 비용은 <b>대당 통신비</b>뿐입니다 —
        폰 충전 전기는 미미해서 청구하지 않습니다.</p>
     <p>이 세계의 시간은 <b>1초가 1시간</b>으로 흐릅니다. 50년을 다 캐려면 약 5일이 걸립니다.</p>
-    <p>총 발행은 <b>55억 KSK</b>입니다. 그중 <b>5억은 사전 채굴</b>돼 재단이 관리하며,
-       유통되지도 예치되지도 않고 <b>희소성 계산에도 들어가지 않습니다</b> —
+    <p>총 발행은 <b>60억 KSK</b>입니다. 그중 <b>10억은 사전 채굴</b>돼 재단이 용도별
+       금고 둘로 관리합니다 — <b>운영 자금 5억</b>(직원 임금 등)과
+       <b>생태계 자금 5억</b>(추천 등록 보너스·해커톤 지원·기타 기부·서버 운영).
+       재단 물량은 유통되지도 예치되지도 않고 <b>희소성 계산에도 들어가지 않습니다</b> —
        채굴로 나오는 50억과 반감기 일정은 그대로입니다.</p>
     <div class="notice">⚠ 시뮬레이션입니다. 실제 블록체인에 발행하지 않고, 실제 화폐가 드나들지 않습니다.
       KSK는 현실 가치가 없는 숫자입니다. 투자 조언이 아닙니다.</div>
     <div class="row"><span>기본 지급</span><b>50 KSK (5,000만원)</b></div>
-    <div class="row"><span>총 발행 상한</span><b>55억 KSK</b></div>
-    <div class="row"><span>└ 채굴로 발행</span><b>50억 KSK (반감기 25회 · 50년)</b></div>
-    <div class="row"><span>└ 사전 채굴 (재단 잠금)</span><b>5억 KSK · 총량의 9.09%</b></div>
+    <div class="row"><span>총 발행 상한</span><b>60억 KSK</b></div>
+    <div class="row"><span>├ 채굴로 발행</span><b>50억 KSK (반감기 25회 · 50년)</b></div>
+    <div class="row"><span>├ 재단 운영 자금</span><b>5억 KSK · 직원 임금 등 · 잠김</b></div>
+    <div class="row"><span>└ 생태계 자금</span><b>5억 KSK · 추천·해커톤·기부·서버</b></div>
     <div class="row"><span>초기 블록 보상</span><b>250만 KSK · 블록 17.5초</b></div>
     <div class="row"><span>화폐</span><b>KSK 하나뿐 — 원화 없음</b></div>
     <div class="row"><span>단위 참조</span><b>1 KSK ≈ 100만원 · 최소 0.000001 KSK</b></div>
@@ -588,22 +599,32 @@ function sha256(str, mode){
 /* ─────────────────────────────────────────────────────────
    2. 세계의 상수
    ───────────────────────────────────────────────────────── */
-// 발행 설계 — 총 55억 개 = 채굴 50억 + 사전 채굴 5억(재단)
+// 발행 설계 — 총 60억 개 = 채굴 50억 + 사전 채굴 10억(재단 금고 둘)
 //   250만 × 1,000 × 2 = 50억   (등비수열 합: R0 × 반감기간격 × 2)
 //   1,000블록 × 25에라 = 25,000블록,  25,000 × 17.52초 = 438,000초 = 50 게임년
 // 시간 축척: 1 실제초 = 1 게임시간 (전기요금도 같은 축척을 쓴다)
 //
-// **사전 채굴(프리마인) 5억은 채굴 곡선을 건드리지 않는다.** 반감기 설계는 등비수열이
+// **사전 채굴(프리마인)은 채굴 곡선을 건드리지 않는다.** 반감기 설계는 등비수열이
 // 정확히 50억을 만들도록 못박혀 있으므로, 재단 물량을 그 안에서 떼면 블록 보상·반감기
-// 일정·검산이 모두 어긋난다. 그래서 상한을 55억으로 올리고 5억을 **얹었다.**
+// 일정·검산이 모두 어긋난다. 그래서 상한을 60억으로 올리고 10억을 **얹었다.**
 //
-// 그리고 재단 물량은 **잠겨 있다** — 유통되지도, 예치되지도, 희소성 계산에 들어가지도
-// 않는다. 희소성은 "앞으로 캘 양이 얼마나 남았나"이고 프리마인은 신규 공급이 아니므로
-// 분모에 넣으면 의미가 뒤틀린다(넣으면 시작 희소성이 1.0 → 1.1 로 뛴다).
-// 그래서 희소성과 총 스테이크는 **채굴 발행분** 기준으로 본다 — 기존 균형이 그대로 보존된다.
-const MINE_CAP     = 5e9;      // 채굴로 발행되는 양 (반감기 설계가 정확히 이 값을 만든다)
-const PREMINE      = 5e8;      // 사전 채굴 — 재단 관리, 유통되지 않는다 (총량의 9.09%)
-const CAP          = MINE_CAP + PREMINE;   // 총 발행 상한 55억 KSK
+// 금고를 **용도별로 둘로 나눴다.** 하나로 두면 "재단이 알아서 쓴다"가 되어 아무 약속도
+// 하지 않는 것과 같다. 쓰는 곳이 다르면 계정도 달라야 한다(실제 재단의 회계와 같다).
+const MINE_CAP      = 5e9;   // 채굴로 발행되는 양 (반감기 설계가 정확히 이 값을 만든다)
+const TREASURY_OPS  = 5e8;   // 재단 운영 자금 — 직원 임금·법인 운영
+const TREASURY_ECO  = 5e8;   // 생태계 자금 — 추천 보상·해커톤·기타 기부·서버 운영
+const PREMINE       = TREASURY_OPS + TREASURY_ECO;   // 사전 채굴 10억 (총량의 16.67%)
+const CAP           = MINE_CAP + PREMINE;            // 총 발행 상한 60억 KSK
+//
+// 재단 물량은 **잠겨 있다** — 유통되지도, 예치되지도, 희소성 계산에 들어가지도 않는다.
+// 희소성은 "앞으로 캘 양이 얼마나 남았나"이고 프리마인은 신규 공급이 아니므로 분모에
+// 넣으면 의미가 뒤틀린다(넣으면 시작 희소성이 1.0 → 1.2 로 뛴다).
+// 그래서 희소성과 총 스테이크는 **채굴 발행분** 기준으로 본다 — 기존 균형이 보존된다.
+//
+// **생태계 자금만 실제로 지출한다.** 추천 보상(F9)이 여기서 나간다 — 새로 발행하지 않고
+// 이미 발행된 물량을 옮기므로 총 발행량이 늘지 않는다. 해커톤·기부·서버는 이 세계에
+// 등장하지 않는 활동이라 용도 표기로만 남긴다(지출 기능을 만들면 거버넌스 설계가 따라온다).
+// 운영 자금(직원 임금)은 지출 기능이 없다 — 게임 안에 재단 직원이 없다.
 const REWARD0      = 2500000;  // 초기 블록 보상 250만 KSK
 const HALVING      = 1000;     // 반감기 간격 (블록) = 2 게임년
 const ERAS         = 25;       // 반감기 25회 → 50 게임년 뒤 발행 종료
@@ -618,8 +639,8 @@ const KSK_PER_PLAN = 0.0714;   // 한계 채굴자가 회선 하나로 한 달�
 // 코인이 유일한 화폐다. 모든 설계값은 **기본 KSK** 이고, 지불 시 물가 배수를 곱한다.
 //
 // 환산 기준: **1 KSK = 100만원**. 최소 단위는 **0.000001 KSK = 1원** 이다.
-// 총 발행 55억 KSK × 100만원 = 5,500조원 — 비트코인 시가총액의 약 2.8배로 무리 없다.
-// (그중 재단 잠금 5억 = 500조원은 유통되지 않으므로 실질 유통 시가는 5,000조원이다.)
+// 총 발행 60억 KSK × 100만원 = 6,000조원 — 비트코인 시가총액의 약 3배로 무리 없다.
+// (그중 재단 잠금 10억 = 1,000조원은 유통되지 않으므로 실질 유통 시가는 5,000조원이다.)
 // 대신 **내 지분을 현실화했다.** 폰 하나가 세계의 4% 라는 건 애초에 비현실적이었다.
 // 지금 값은 8e-8(0.000008%) 이고, 그래야 초당 수령이 소수점 6자리로 떨어진다.
 // 그 결과 직접 블록 발견은 사실상 불가능해진다 — 현실에서도 폰 솔로 채굴은 그렇다.
@@ -635,12 +656,13 @@ const MONTH_HOURS  = 730;      // 게임 한 달 (8760 ÷ 12)
 // 그 전에 자산을 쌓아 임대·직업으로 넘어가는 아크가 된다.
 const START_SHARE  = 8e-8;     // 0.000008%
 const START_COIN   = 50;       // 채굴 시작 기본 지급 (5,000만원)
-// 저장 키를 v6 으로 올렸다. **발행 상한이 50억 → 55억(프리마인 5억)으로 바뀌었다.**
-// v5 저장값에는 `treasury` 가 없고 `issued` 에도 프리마인이 안 들어 있어서, 그대로 읽으면
-// 재단 물량이 없는 세계가 55억 상한으로 돌아 발행 진행률과 유통량이 전부 어긋난다.
-// (v5 로 올린 이유는 코인 단일 화폐 전환 — 금액 스케일이 100만분의 1 이 됐다.)
+// 저장 키를 v7 으로 올렸다. **발행 상한이 55억 → 60억이고 금고가 둘로 나뉘었다.**
+// v6 저장값의 `treasury` 는 숫자 하나(5억)라 `treasury.ops` 를 읽으면 undefined 가 되고,
+// `issued` 에도 프리마인 5억만 들어 있어 60억 상한으로 돌면 발행 진행률·유통량이 어긋난다.
+// F9 의 `ref.invited[].rate` 도 절대 속도 → 개인차 배수로 의미가 바뀌어 섞이면 안 된다.
+// (v5→v6 은 발행 55억 전환, v4→v5 는 코인 단일 화폐 전환이었다.)
 // 규칙: **금액 단위나 발행 규칙이 바뀌면 반드시 이 키를 올린다.**
-const SAVE_KEY     = "ksk_coin_v6";
+const SAVE_KEY     = "ksk_coin_v7";
 
 // 기기 자원을 최소로 쓰기 위한 예산.
 // 1단계(초기 분배 PoW)는 DUTY 프레임 중 한 번만, 그때도 hashMs() 만큼만 해시한다.
@@ -684,7 +706,9 @@ function freshState(){
     coin: START_COIN, blocks: 0,
     // 세계 전체 발행량 — 사전 채굴과 초기 지급도 발행의 일부로 센다
     issued: PREMINE + START_COIN,
-    treasury: PREMINE,    // 재단 금고 — 잠겨 있고 유통되지 않는다 (지출 기능 없음)
+    // 재단 금고 둘 — 잠겨 있고 유통량에 안 들어간다.
+    // ops(운영·직원 임금)는 지출 기능이 없고, eco(생태계)에서 F9 등록 보너스가 나간다.
+    treasury: { ops: TREASURY_OPS, eco: TREASURY_ECO },
     mined: START_COIN,    // 내가 받은 양 (초기 지급 + 풀 지급 + 검증 보상 + 발견 보너스)
     burned: 0,            // 수수료·세금으로 영구 소각된 양
     counts: { old:1, used:0, budget:0, flag:0, tablet:0 },  // 쓰던 구형 폰 1대로 시작
@@ -730,11 +754,19 @@ const clamp = (v,a,b) => v < a ? a : v > b ? b : v;
 const elecRate  = () => ELEC_BASE;                              // 살림살이(F4) 전기요금에만 쓴다
 const sentiment = () => S.demand;                               // 내부 수요 엔진
 
-// 재단 금고 — v5 이전 저장값에는 없으므로 기본값을 준다
-const treasury    = () => (typeof S.treasury === "number" ? S.treasury : PREMINE);
+// 재단 금고 둘. 옛 저장값(숫자 하나였던 v6, 아예 없던 v5)도 안전하게 읽는다.
+const trOps     = () => (S.treasury && typeof S.treasury.ops === "number") ? S.treasury.ops : TREASURY_OPS;
+const trEco     = () => (S.treasury && typeof S.treasury.eco === "number") ? S.treasury.eco : TREASURY_ECO;
+const treasury  = () => trOps() + trEco();
 // 채굴로 발행된 양. 사전 채굴은 신규 공급이 아니므로 희소성·스테이크 모집단에서 뺀다.
-const mineIssued  = () => clamp(S.issued - treasury(), 0, MINE_CAP);
-// 실제로 세상에 도는 양 — 잠긴 재단 물량과 영구 소각분을 뺀다
+//
+// **여기서 빼는 것은 상수 `PREMINE` 이고, 현재 금고 잔액 `treasury()` 가 아니다.**
+// 금고가 등록 보너스를 지급하면 잔액이 줄지만 `S.issued` 는 그대로다(이전이지 발행이
+// 아니므로). 잔액으로 빼면 지출한 만큼이 **채굴 발행량으로 잡혀** 희소성과 총 스테이크가
+// 부풀고, `CAP − 총발행량 = MINE_CAP − 채굴발행량` 등식도 깨진다 (실측으로 잡았다).
+const mineIssued  = () => clamp(S.issued - PREMINE, 0, MINE_CAP);
+// 실제로 세상에 도는 양 — **잠긴 잔액**과 영구 소각분을 뺀다.
+// 이쪽은 반대로 현재 잔액을 써야 한다. 금고에서 풀린 코인은 유통에 들어왔으니까.
 const circulating = () => Math.max(0, S.issued - treasury() - S.burned);
 const scarcity  = () => MINE_CAP / Math.max(MINE_CAP - mineIssued(), 1);   // 캘수록 커진다
 const fairPrice = () => BASE_PRICE * scarcity() * sentiment();
@@ -1216,8 +1248,8 @@ function render(){
   $("sShare").textContent  = shPct === 0 ? "0%"
     : shPct < 0.001 ? shPct.toFixed(7)+"%" : shPct.toFixed(3)+"%";
   $("sSupply").textContent = (S.issued/CAP*100).toFixed(3)+"%";
-  $("sSupply").title = "총 55억 기준. 채굴 발행분만 보면 "+
-    (mineIssued()/MINE_CAP*100).toFixed(3)+"% (재단 사전 채굴 5억은 시작부터 발행돼 있다)";
+  $("sSupply").title = "총 60억 기준. 채굴 발행분만 보면 "+
+    (mineIssued()/MINE_CAP*100).toFixed(3)+"% (재단 사전 채굴 10억은 시작부터 발행돼 있다)";
   $("sYear").textContent   = gameYears().toFixed(1)+"년";
 
   $("rElec").textContent = ksk(elecRate())+" KSK/kWh";
@@ -1285,12 +1317,15 @@ function render(){
     (priceIdx() < 0.999 ? " — 물가 하락" : priceIdx() > 1.001 ? " — 물가 상승" : "");
   $("kIdx").className     = priceIdx() < 0.999 ? "up" : priceIdx() > 1.001 ? "down" : "dimtxt";
   $("kBurn").textContent  = ksk(S.burned)+" KSK";
-  // 총 발행 55억 = 채굴 50억 + 재단 5억. 셋을 나눠 보여 준다 — 합치면 프리마인이
-  // 채굴 진행률처럼 읽혀 "시작부터 9% 캤다"는 오해가 생긴다.
+  // 총 발행 60억 = 채굴 50억 + 재단 10억(운영 5 + 생태계 5). 나눠 보여 준다 —
+  // 합치면 프리마인이 채굴 진행률처럼 읽혀 "시작부터 17% 캤다"는 오해가 생긴다.
   $("kIssued").textContent   = ksk(S.issued)+" / "+ksk(mineIssued())+" KSK "+
     "("+(mineIssued()/MINE_CAP*100).toFixed(3)+"% 채굴)";
-  $("kTreasury").textContent = ksk(treasury())+" KSK ("+
-    (treasury()/CAP*100).toFixed(2)+"%) · 잠김";
+  $("kTrOps").textContent = ksk(trOps())+" KSK ("+
+    (trOps()/CAP*100).toFixed(2)+"%) · 잠김 · 지출 기능 없음";
+  // 생태계 자금은 실제로 줄어든다 — 5억 대비 지출이 미미해 누적 지출을 함께 적는다
+  $("kTrEco").textContent = ksk(trEco())+" KSK ("+
+    (trEco()/CAP*100).toFixed(2)+"%) · 누적 지출 "+ksk(PREMINE/2 - trEco())+" KSK";
   $("kCirc").textContent     = ksk(circulating())+" KSK";
 
   document.querySelectorAll("[data-rig]").forEach(function(b){
@@ -1353,7 +1388,8 @@ function endGame(complete){
   $("eStats").innerHTML =
     '<div class="row"><span>내 총 수령량</span><b>'+ksk(S.mined)+' KSK</b></div>'+
     '<div class="row"><span>세계 총 발행량</span><b>'+ksk(S.issued)+' KSK</b></div>'+
-    '<div class="row"><span>재단 잠금 (사전 채굴)</span><b>'+ksk(treasury())+' KSK</b></div>'+
+    '<div class="row"><span>재단 운영 자금</span><b>'+ksk(trOps())+' KSK</b></div>'+
+    '<div class="row"><span>생태계 자금 (잔액)</span><b>'+ksk(trEco())+' KSK</b></div>'+
     '<div class="row"><span>유통 공급</span><b>'+ksk(circulating())+' KSK</b></div>'+
     '<div class="row"><span>찾은 블록</span><b>'+S.blocks+'</b></div>'+
     '<div class="row"><span>최종 순자산</span><b>'+ksk(net)+' KSK</b></div>'+
@@ -2838,83 +2874,95 @@ document.addEventListener("click", function(ev){
 /* ==== [F8:직업] JS 끝 ==== */
 
 /* ==== [F9:추천인] JS 시작 ==== */
-// F9 — 추천인 제도. 한 명을 초대하고, 그 사람의 누적 코인이 100 KSK 에 닿는 순간
-// 추천인에게 10 KSK 를 지급한다 (한 사람당 한 번).
+// F9 — 추천인 제도. **초대받은 사람이 등록 즉시 등록 보너스 10 KSK 를 받는다.**
 //
-// 이 세계에는 실제 다른 사용자가 없다. 초대한 사람은 **시뮬레이션된 참여자**다 —
-// 나와 같은 폰 채굴자로 보고, 기본 지급 50 KSK 로 시작해 자기 속도로 모은다.
+// 처음 설계는 "초대자가 누적 100 KSK 에 닿으면 **추천인에게** 10 KSK" 였다. 그런데 그 모양은
+// 두 가지가 잘못돼 있었다.
+//
+// 1) **재원이 신규 발행이었다.** `S.issued += bonus` 로 없던 코인을 찍어 냈다. 지금은 생태계
+//    금고에서 옮긴다 — 이미 발행된 물량이 주인만 바뀌므로 총 발행량이 늘지 않는다.
+// 2) **누적이 채굴을 압도했다.** 초대 간격이 게임 한 달이라 50년이면 595명이 보상을 받아
+//    5,940 KSK — 내 총 채굴(392 KSK)의 15배였다. 클릭 한 번에 비용 0 인 소득이 주력이 됐다.
+//    원인의 대부분은 정책이 아니라 **버그**였다: `refRate()` 가 `REWARD0` 을 박아 둬서
+//    초대자만 반감기를 안 받고 50년 내내 초기 보상으로 캤다. 초대자를 "나와 같은 폰
+//    채굴자"로 규정했으니 반감기도 같이 받아야 한다. 고치자 720 KSK 로 떨어졌다.
+//
+// 이제 보상이 **초대받은 쪽으로** 간다. 추천 제도의 목적이 신규 유입 지원이라면 지원금은
+// 신규에게 가는 것이 맞고, 그래서 추천인(플레이어)의 소득이 되지 않는다 — 위 2)의 문제가
+// 정책으로 사라진다. 남은 상한은 인원 하나뿐이다.
+//
+// 이 세계에는 실제 다른 사용자가 없다. 초대한 사람은 **시뮬레이션된 참여자**다.
 // 실제 사람 이름을 만들지 않고 '초대 #1' 로만 표기한다 (오해를 만들지 않기 위해).
-//
-// 보상 재원은 **발행량**이다. S.issued 에 더해 총 상한 50억 KSK 를 넘지 않게 막는다.
-const REF_TARGET   = 100;   // 초대한 사람의 누적 목표 (KSK)
-const REF_BONUS    = 10;    // 목표 달성 시 추천인이 받는 양 (KSK)
+const REF_SIGNUP   = 10;    // 초대받은 사람이 **등록 즉시** 받는 보너스 (생태계 금고에서)
 const REF_COOLDOWN = 1;     // 초대 간격 (게임 개월)
+// 인원 상한. 코드에 이미 "전화번호부가 무한하지 않다"는 논리를 적어 뒀는데, 전화번호부에는
+// **총량**도 있다. 밸런스 말고 성능 이유도 있다 — 상한이 없으면 50년에 600명이 쌓여
+// renderRef() 가 매 500ms 카드 600개를 만들고 tick 이 600명을 훑는다.
+const REF_MAX      = 20;
 
-// 초대한 사람의 채굴 속도 — 내 초기 수령률을 기준으로 ±40% 흔든다
-function refRate(){
-  const base = START_SHARE * REWARD0 / TARGET_SEC;   // 초당 KSK (반감기 전 기준)
-  return base * (0.6 + Math.random()*0.8);
+// 초대한 사람의 채굴 속도. `v.rate` 는 **개인차 배수**(0.6~1.4)이고 절대 속도는 세계의
+// 현재 블록 보상에서 나온다 — 그래서 초대자도 나와 똑같이 반감기를 받는다.
+const refMult    = () => 0.6 + Math.random()*0.8;
+const refRateOf  = v => START_SHARE * reward() / TARGET_SEC * (v.rate || 1);
+
+const refRoom      = () => Math.max(0, REF_MAX - S.ref.invited.length);
+const refCanInvite = () => refRoom() > 0 && worldMonths() - S.ref.lastAt >= REF_COOLDOWN;
+const refGranted   = () => S.ref.granted || 0;
+// 왜 초대할 수 없는지 — 조용히 비활성만 하지 않는다 (F8 의 지원 불가 이유와 같은 방식)
+function refBlockedWhy(){
+  if(refRoom() <= 0) return "초대 인원을 모두 썼습니다 ("+REF_MAX+"명)";
+  if(worldMonths() - S.ref.lastAt < REF_COOLDOWN)
+    return ((REF_COOLDOWN - (worldMonths() - S.ref.lastAt))*MONTH_HOURS).toFixed(0)+"초 뒤 가능";
+  return null;
 }
-
-const refCanInvite = () => worldMonths() - S.ref.lastAt >= REF_COOLDOWN;
-const refPaidTotal = () => S.ref.invited.filter(function(v){ return v.paid; }).length * REF_BONUS;
 
 function invite(){
   if(!refCanInvite()) return;
+  // 등록 보너스는 **생태계 금고**에서 나간다. 잔액이 모자라면 남은 만큼만 준다.
+  const grant = Math.min(REF_SIGNUP, trEco());
   const id = S.ref.invited.length + 1;
-  S.ref.invited.push({ id:id, coin:START_COIN, rate:refRate(), paid:false });
+  S.ref.invited.push({ id:id, coin:START_COIN + grant, rate:refMult(), grant:grant });
   S.ref.lastAt = worldMonths();
-  log("<b>초대 #"+id+"</b> 가입 — 기본 지급 "+ksk(START_COIN)+" KSK 로 시작합니다. "+
-      "누적 "+REF_TARGET+" KSK 에 닿으면 추천 보상 "+REF_BONUS+" KSK");
+  if(grant > 0){
+    S.treasury.eco = trEco() - grant;        // 새로 발행하지 않는다 — 금고에서 옮긴다
+    S.ref.granted  = refGranted() + grant;
+  }
+  log("<b>초대 #"+id+"</b> 가입 — 기본 지급 "+ksk(START_COIN)+" KSK + "+
+      (grant > 0 ? "<b>등록 보너스 "+ksk(grant)+" KSK</b> (생태계 자금에서 지급)"
+                 : "등록 보너스 없음 (생태계 자금 소진)")+
+      " · 남은 초대 "+refRoom()+"명");
   save(); renderRef();
 }
 
 tickHooks.push(function(dt){
-  if(!S.ref.invited.length) return;
+  // 초대자들은 자기 속도로 계속 캔다. 추천인에게 가는 보상은 없다 —
+  // 이 목록은 세계의 참여자가 늘어나는 것을 보여 줄 뿐이다.
   for(let i=0; i<S.ref.invited.length; i++){
     const v = S.ref.invited[i];
-    if(v.paid) { v.coin += v.rate * dt; continue; }   // 보상 뒤에도 계속 모은다
-    v.coin += v.rate * dt;
-    if(v.coin >= REF_TARGET){
-      v.paid = true;
-      // 재원은 발행량. 상한을 넘지 않게 자른다.
-      const bonus = Math.min(REF_BONUS, CAP - S.issued);
-      if(bonus > 0){
-        S.coin += bonus; S.mined += bonus; S.issued += bonus;
-        log("<b>추천 보상 +"+ksk(bonus)+" KSK</b> — 초대 #"+v.id+
-            " 의 누적이 "+REF_TARGET+" KSK 에 닿았습니다");
-      }else{
-        log("초대 #"+v.id+" 가 목표에 닿았지만 발행 상한에 걸려 보상이 없습니다");
-      }
-      save();
-    }
+    v.coin += refRateOf(v) * dt;
   }
 });
 
 function renderRef(){
   if(!$("invList")) return;
-  $("invCount").textContent = S.ref.invited.length+"명";
-  $("invPaid").textContent  = ksk(refPaidTotal())+" KSK";
-  $("invPaid").className    = refPaidTotal() > 0 ? "up" : "dimtxt";
-  const left = REF_COOLDOWN - (worldMonths() - S.ref.lastAt);
-  $("invNext").textContent  = refCanInvite() ? "가능"
-    : (left*MONTH_HOURS).toFixed(0)+"초 뒤";
-  $("invNext").className    = refCanInvite() ? "up" : "dimtxt";
+  $("invCount").textContent = S.ref.invited.length+"명 / "+REF_MAX+"명";
+  $("invCount").className   = refRoom() > 0 ? "" : "dimtxt";
+  $("invPaid").textContent  = ksk(refGranted())+" KSK";
+  $("invPaid").className    = refGranted() > 0 ? "up" : "dimtxt";
+  $("invEco").textContent   = ksk(trEco())+" KSK";
+  const why = refBlockedWhy();
+  $("invNext").textContent  = why || "가능";
+  $("invNext").className    = why ? "dimtxt" : "up";
   $("invBtn").disabled      = !refCanInvite();
 
   $("invList").innerHTML = S.ref.invited.length
     ? S.ref.invited.map(function(v){
-        const pct = Math.min(100, v.coin/REF_TARGET*100);
-        const eta = v.paid ? null : (REF_TARGET - v.coin) / v.rate;
-        return '<div class="inv'+(v.paid?" done":"")+'"><div class="top"><div>'+
+        return '<div class="inv done"><div class="top"><div>'+
           '<div class="nm">초대 #'+v.id+
-            (v.paid ? ' <span class="up">보상 지급 완료</span>' : '')+'</div>'+
-          '<div class="meta">누적 '+ksk(v.coin)+' / '+REF_TARGET+' KSK · '+
-            '속도 '+v.rate.toFixed(6)+' KSK/초'+
-            (eta !== null && isFinite(eta) ? ' · 약 '+Math.ceil(eta)+'초 뒤 달성' : '')+
+            ' <span class="up">등록 보너스 '+ksk(v.grant||0)+' KSK 지급</span></div>'+
+          '<div class="meta">누적 '+ksk(v.coin)+' KSK · 채굴 속도 '+
+            refRateOf(v).toFixed(6)+' KSK/초 <span class="dimtxt">(반감기를 함께 받는다)</span>'+
           '</div>'+
-          '<div class="prog"><div class="'+(pct>=100?"full":"")+
-            '" style="width:'+pct.toFixed(1)+'%"></div></div>'+
           '</div></div></div>';
       }).join("")
     : '<div class="sub">아직 초대한 사람이 없습니다</div>';
