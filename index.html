@@ -140,6 +140,14 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
 /* ==== [F5:월정산] CSS 시작 ==== */
 /* ==== [F5:월정산] CSS 끝 ==== */
 /* ==== [F8:직업] CSS 시작 ==== */
+.jb{border:1px solid var(--line);border-radius:6px;padding:9px;margin-bottom:6px;
+  display:flex;justify-content:space-between;align-items:center;gap:8px}
+.jb.now{border-color:#1f6feb;background:#12203a}
+.jb .nm{font-weight:600;font-size:13px}
+.jb .meta{color:var(--dim);font-size:11px;margin-top:2px;font-variant-numeric:tabular-nums}
+.jb .why{color:var(--down);font-size:11px;margin-top:2px}
+#jobList,#certList{max-height:300px;overflow-y:auto}
+.warn{color:var(--gold)}   /* 진행 중 표시 — 전역에 없어서 여기서 정의한다 */
 /* ==== [F8:직업] CSS 끝 ==== */
 </style>
 </head>
@@ -324,6 +332,29 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
     <!-- ==== [F5:월정산] 패널 시작 ==== -->
     <!-- ==== [F5:월정산] 패널 끝 ==== -->
     <!-- ==== [F8:직업] 패널 시작 ==== -->
+    <div class="panel" data-tab="job">
+      <h2>직업 — 세 번째 소득원</h2>
+      <div class="row"><span>현재 직업</span><b id="jNow">무직</b></div>
+      <div class="row"><span>월급 / 초당</span><b id="jPay" class="up">—</b></div>
+      <div class="row"><span>근속 / 승진 보정</span><b id="jTenure">—</b></div>
+      <div class="row"><span>주간 근무시간</span><b id="jHours">—</b></div>
+      <div class="row"><span>학력 / 보유 자격</span><b id="jEdu">—</b></div>
+      <div class="btns">
+        <button id="jQuit" class="ghost sm" disabled>퇴사</button>
+        <button id="jAgency" class="buy sm" hidden>중개사무소 개업 (2,000,000원)</button>
+      </div>
+      <div id="jobList"></div>
+      <div class="sub">월급은 <b>초기의 방어선</b>입니다 — 통신비와 살림 전기요금을 덮어 주니
+        코인을 헐값에 급매하지 않아도 됩니다. 월급·응시료는 게임 균형용 근사치입니다.</div>
+    </div>
+
+    <div class="panel" data-tab="job">
+      <h2>자격·학위</h2>
+      <div class="row"><span>진행 중</span><b id="jStudy">없음</b></div>
+      <div id="certList"></div>
+      <div class="sub">응시료를 내고 기간이 지나면 확률 판정을 합니다. 떨어지면 응시료는 돌려주지 않습니다.
+        <b>부동산 중개사</b> 자격은 부동산 중개수수료를 면제해 줍니다.</div>
+    </div>
     <!-- ==== [F8:직업] 패널 끝 ==== -->
 
   </div>
@@ -511,6 +542,7 @@ function freshState(){
     attestTimer: 0,
     slashed: 0,           // 미가동 누출로 잃은 양
     fees: 0,              // 누적 수수료 (0.01%)
+    job: { id: null, months: 0, certs: [], edu: 0, study: null, agency: false },   // F8 직업
     hh: { items: {}, placedAt: null },   // F4 살림살이 — items: {품목id:{n:개수, age:경과 게임개월}}
     mine: { at: null, place: {}, penalty: 0 },   // F3 채굴 인프라 — at: 채굴장 건물id, place: {폰id:대수}
     re: { owned: [], mkt: 1.0 },   // F2 부동산 — owned:[{id,price(매입가),yr}], mkt: 시세 배수
@@ -1734,7 +1766,216 @@ document.addEventListener("change", function(ev){
 /* ==== [F5:월정산] JS 끝 ==== */
 
 /* ==== [F8:직업] JS 시작 ==== */
-// 상태: freshState() 에 필드 추가 · 렌더: renderHooks 에 함수 등록
+// F8 — 직업. 소득원이 셋이 된다: 채굴/검증(코인) · 자산(임대·차익) · 노동(월급).
+//
+// 월급의 역할은 돈벌이가 아니라 **초기의 방어선**이다. 통신비와 살림 전기요금이 현금을
+// 갉아먹을 때 월급이 있으면 코인을 헐값에 급매하지 않아도 된다.
+// 균형: 초기 생활비 약 48,000원/월 · 폰 1대 채굴 41,667원/월 → 알바(120,000원)가 방어선.
+// 폰을 다 갖춘 채굴은 604,167원/월로 대기업 월급과 맞먹고, 부동산 임대가 최종 주력이다.
+const TENURE_CAP = 120;      // 승진 보정이 최대(+50%)에 닿는 근속 개월
+const AGENCY_FEE = 2000000;  // 중개사무소 개업 비용
+const AGENCY_PAY = 500000;   // 개업 기본 수입 (부동산 시세 배수를 곱한다)
+
+const JOBS = [
+  { id:"parttime", name:"편의점 알바",   pay:120000,  hours:20, needEdu:0, needCert:null,        odds:0.95 },
+  { id:"sme",      name:"중소기업 사원", pay:300000,  hours:40, needEdu:0, needCert:null,        odds:0.60 },
+  { id:"realtor",  name:"부동산 중개사", pay:350000,  hours:40, needEdu:0, needCert:"realtor",   odds:0.90 },
+  { id:"civil",    name:"공무원",       pay:450000,  hours:40, needEdu:1, needCert:"civilexam", odds:0.50 },
+  { id:"corp",     name:"대기업 사원",   pay:700000,  hours:45, needEdu:1, needCert:null,        odds:0.35 },
+  { id:"exec",     name:"대기업 임원",   pay:1600000, hours:55, needEdu:2, needCert:null,        odds:0.15 }
+];
+
+// edu > 0 이면 합격 시 학력 단계가 그 값으로 오른다
+const CERTS = [
+  { id:"realtor",   name:"부동산 중개사 시험", fee:200000,  months:3,  odds:0.55, needEdu:0, edu:0 },
+  { id:"civilexam", name:"공무원 시험",       fee:150000,  months:6,  odds:0.30, needEdu:0, edu:0 },
+  { id:"degree",    name:"학사 학위",         fee:3000000, months:12, odds:0.90, needEdu:0, edu:1 },
+  { id:"master",    name:"석사 학위",         fee:5000000, months:12, odds:0.85, needEdu:1, edu:2 }
+];
+
+const jobFind  = id => JOBS.find(function(j){ return j.id === id; });
+const certFind = id => CERTS.find(function(c){ return c.id === id; });
+
+// 계약 §5 — F2 가 이 이름 그대로 불러 중개수수료 면제를 판단한다. 바꾸지 않는다.
+function jobHasCert(id){ return S.job.certs.indexOf(id) >= 0; }
+
+const jobNow = () => S.job.id ? jobFind(S.job.id) : null;
+
+// 승진 — 근속 개월에 따라 월급이 오른다 (10년에 +50%)
+const tenureMul = () => 1 + Math.min(S.job.months, TENURE_CAP)/TENURE_CAP * 0.5;
+
+// 개업하면 월급 대신 중개 수입을 받는다. 부동산 시장이 활발하면 더 번다.
+function payNow(){
+  const j = jobNow();
+  if(!j) return 0;
+  if(S.job.agency && j.id === "realtor") return AGENCY_PAY * S.re.mkt * tenureMul();
+  return j.pay * tenureMul();
+}
+const jobPayPerSec = () => payNow() / MONTH_HOURS;
+
+// 지원 가능 여부와 **왜 안 되는지**를 함께 돌려준다 — 조용히 비활성만 하지 않는다
+function jobBlockedWhy(j){
+  if(S.job.id === j.id) return "현재 직업입니다";
+  if(S.job.edu < j.needEdu)
+    return "학력 " + j.needEdu + "단계 필요 (현재 " + S.job.edu + "단계)";
+  if(j.needCert && !jobHasCert(j.needCert))
+    return certFind(j.needCert).name + " 자격 필요";
+  return null;
+}
+
+function applyJob(id){
+  const j = jobFind(id);
+  if(!j) return;
+  const why = jobBlockedWhy(j);
+  if(why){ log("<b>"+j.name+"</b> 지원 불가 — "+why); return; }
+  if(Math.random() < j.odds){
+    S.job.id = id; S.job.months = 0; S.job.agency = false;
+    log("<b>"+j.name+"</b> 합격! 월급 "+won(j.pay)+"원 · 주 "+j.hours+"시간 "+
+        "(합격 확률 "+(j.odds*100).toFixed(0)+"%)");
+  }else{
+    log("<b>"+j.name+"</b> 불합격 — 조건은 맞았지만 확률에서 떨어졌습니다 "+
+        "(합격 확률 "+(j.odds*100).toFixed(0)+"%)");
+  }
+  save(); renderJobs();
+}
+
+function quitJob(){
+  const j = jobNow();
+  if(!j) return;
+  log("<b>"+j.name+"</b> 퇴사 — 근속 "+S.job.months.toFixed(1)+"개월이 초기화됩니다");
+  S.job.id = null; S.job.months = 0; S.job.agency = false;
+  save(); renderJobs();
+}
+
+function openAgency(){
+  if(S.job.id !== "realtor" || S.job.agency) return;
+  if(!jobHasCert("realtor") || S.cash < AGENCY_FEE) return;
+  S.cash -= AGENCY_FEE; S.spent += AGENCY_FEE; S.job.agency = true;
+  log("<b>중개사무소 개업</b> -"+won(AGENCY_FEE)+"원 · 이제 월급 대신 중개 수입을 받습니다");
+  save(); renderJobs();
+}
+
+function certBlockedWhy(c){
+  if(jobHasCert(c.id)) return "이미 보유";
+  if(c.edu > 0 && S.job.edu >= c.edu) return "이미 취득";
+  if(S.job.study) return "다른 과정 진행 중";
+  if(S.job.edu < c.needEdu) return "학력 " + c.needEdu + "단계 필요";
+  if(S.cash < c.fee) return "응시료 부족";
+  return null;
+}
+
+function startStudy(id){
+  const c = certFind(id);
+  if(!c || certBlockedWhy(c)) return;
+  S.cash -= c.fee; S.spent += c.fee;
+  S.job.study = { id: id, left: c.months };
+  log("<b>"+c.name+"</b> 등록 -"+won(c.fee)+"원 · "+c.months+"개월 뒤 판정 "+
+      "(합격 확률 "+(c.odds*100).toFixed(0)+"%)");
+  save(); renderJobs();
+}
+
+tickHooks.push(function(dt){
+  const mo = dt / MONTH_HOURS;
+  // 월급 — F5(월 정산)가 붙으면 이 적립을 월말 일괄 지급으로 옮기고 이 줄을 지운다.
+  // 그때 F5 는 이 훅을 대체하되, F8 구역의 코드는 F8 담당이 정리한다 (스킬 규칙).
+  if(S.job.id){
+    S.cash += jobPayPerSec() * dt;
+    S.job.months += mo;
+  }
+  // 자격·학위 진행
+  if(S.job.study){
+    S.job.study.left -= mo;
+    if(S.job.study.left <= 0){
+      const c = certFind(S.job.study.id);
+      S.job.study = null;
+      if(c && Math.random() < c.odds){
+        if(c.edu > 0){
+          S.job.edu = Math.max(S.job.edu, c.edu);
+          log("<b>"+c.name+"</b> 취득! 학력 "+S.job.edu+"단계");
+        }else{
+          S.job.certs.push(c.id);
+          log("<b>"+c.name+"</b> 합격! 자격을 취득했습니다"+
+              (c.id === "realtor" ? " — 부동산 중개수수료가 면제됩니다" : ""));
+        }
+      }else if(c){
+        log("<b>"+c.name+"</b> 불합격 — 응시료는 돌려받지 못합니다 (재응시 가능)");
+      }
+      save();
+    }
+  }
+});
+
+function renderJobs(){
+  if(!$("jobList")) return;
+  const j = jobNow();
+  const agency = S.job.agency && j && j.id === "realtor";
+  $("jNow").textContent = j ? (agency ? "중개사무소 대표" : j.name) : "무직";
+  $("jNow").className   = j ? "up" : "dimtxt";
+  $("jPay").textContent = j
+    ? won(payNow())+"원/월 · "+won(jobPayPerSec())+"원/초"
+    : "0원";
+  $("jPay").className   = j ? "up" : "dimtxt";
+  $("jTenure").textContent = j
+    ? S.job.months.toFixed(1)+"개월 · ×"+tenureMul().toFixed(3)
+    : "—";
+  $("jHours").textContent = j ? "주 "+j.hours+"시간" : "—";
+  $("jEdu").textContent = S.job.edu+"단계 · "+
+    (S.job.certs.length ? S.job.certs.map(function(id){ return certFind(id).name; }).join(", ")
+                        : "자격 없음");
+
+  $("jQuit").disabled = !j;
+  const ag = $("jAgency");
+  ag.hidden = !(j && j.id === "realtor" && !S.job.agency);
+  ag.disabled = S.cash < AGENCY_FEE;
+
+  $("jStudy").textContent = S.job.study
+    ? certFind(S.job.study.id).name+" · "+S.job.study.left.toFixed(1)+"개월 남음"
+    : "없음";
+  $("jStudy").className = S.job.study ? "warn" : "dimtxt";
+
+  $("jobList").innerHTML = JOBS.map(function(x){
+    const why = jobBlockedWhy(x), isNow = S.job.id === x.id;
+    const btn = isNow
+      ? '<button class="ghost sm" disabled>재직 중</button>'
+      : '<button class="buy sm" data-jobapply="'+x.id+'"'+(why?" disabled":"")+'>지원</button>';
+    return '<div class="jb'+(isNow?" now":"")+'"><div>'+
+      '<div class="nm">'+x.name+'</div>'+
+      '<div class="meta">월급 '+won(x.pay)+'원 · 주 '+x.hours+'시간 · 합격률 '+
+        (x.odds*100).toFixed(0)+'%'+
+        (x.needEdu ? ' · 학력 '+x.needEdu+'단계' : '')+
+        (x.needCert ? ' · '+certFind(x.needCert).name+' 자격' : '')+'</div>'+
+      (why && !isNow ? '<div class="why">'+why+'</div>' : '')+
+      '</div>'+btn+'</div>';
+  }).join("");
+
+  $("certList").innerHTML = CERTS.map(function(c){
+    const why = certBlockedWhy(c);
+    const done = jobHasCert(c.id) || (c.edu > 0 && S.job.edu >= c.edu);
+    const btn = done
+      ? '<button class="ghost sm" disabled>취득 완료</button>'
+      : '<button class="buy sm" data-certgo="'+c.id+'"'+(why?" disabled":"")+'>등록 '+
+        won(c.fee)+'원</button>';
+    return '<div class="jb'+(done?" now":"")+'"><div>'+
+      '<div class="nm">'+c.name+'</div>'+
+      '<div class="meta">응시료 '+won(c.fee)+'원 · '+c.months+'개월 · 합격률 '+
+        (c.odds*100).toFixed(0)+'%'+
+        (c.edu ? ' · 취득 시 학력 '+c.edu+'단계' : '')+
+        (c.needEdu ? ' · 학력 '+c.needEdu+'단계 필요' : '')+'</div>'+
+      (why && !done ? '<div class="why">'+why+'</div>' : '')+
+      '</div>'+btn+'</div>';
+  }).join("");
+}
+renderHooks.push(renderJobs);
+
+// 자기 리스너 — 공유 위임 리스너를 고치지 않는다
+document.addEventListener("click", function(ev){
+  const b = ev.target.closest("button");
+  if(!b) return;
+  if(b.dataset.jobapply) applyJob(b.dataset.jobapply);
+  if(b.dataset.certgo)   startStudy(b.dataset.certgo);
+  if(b.id === "jQuit")   quitJob();
+  if(b.id === "jAgency") openAgency();
+});
 /* ==== [F8:직업] JS 끝 ==== */
 
 let last = performance.now();
