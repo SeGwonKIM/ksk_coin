@@ -811,16 +811,22 @@ function merge(){
 const won  = v => Math.round(v).toLocaleString("ko-KR");
 // 최소 단위가 0.000001 KSK (=1원) 이라 작은 값은 소수점 6자리까지 보여야 한다.
 // 큰 값(세계 발행량 등)은 억·만 단위로 접어 읽는다.
+// 거래수치를 최소 단위(0.000001 KSK = 1원)로 양자화한다
+const q6 = v => Math.round(v * 1e6) / 1e6;
+// 소수점 끝의 0 은 지운다 — "30.000 KSK" 가 30,000 으로 읽히는 문제 (마침표가
+// 천 단위 구분기호처럼 보인다). 1,000 이상은 쉼표를 넣어 아예 헷갈리지 않게 한다.
+const trim0 = s => s.indexOf(".") < 0 ? s : s.replace(/0+$/, "").replace(/\.$/, "");
 function ksk(v){
   if(!isFinite(v)) return "—";
   const a = Math.abs(v);
-  if(a >= 1e8)    return (v/1e8).toFixed(2) + "억";
-  if(a >= 1e4)    return (v/1e4).toFixed(1) + "만";
-  if(a >= 100)    return v.toFixed(1);
-  if(a >= 1)      return v.toFixed(3);
-  if(a >= 0.001)  return v.toFixed(5);
+  if(a >= 1e8)    return trim0((v/1e8).toFixed(2)) + "억";
+  if(a >= 1e4)    return trim0((v/1e4).toFixed(1)) + "만";
+  if(a >= 1000)   return Math.round(v).toLocaleString("ko-KR");
+  if(a >= 100)    return trim0(v.toFixed(1));
+  if(a >= 1)      return trim0(v.toFixed(3));
+  if(a >= 0.001)  return trim0(v.toFixed(5));
   if(a === 0)     return "0";
-  return v.toFixed(6);                    // 최소 단위까지
+  return trim0(v.toFixed(6));             // 최소 단위까지
 }
 // 로그용 — 소수점 6자리를 그대로 보여 준다
 function kskFull(v){
@@ -1482,8 +1488,10 @@ const ESTATES = [
 // 기본 KSK 가격과 임대료·관리비를 실제 참고 시세에서 파생시킨다
 ESTATES.forEach(function(e){
   e.price = Math.round(e.real * EOK);
-  e.rent  = Math.round(e.price * e.rentPct);   // 월 임대료 (수익률은 용도별로 다르다)
-  e.fee   = Math.round(e.rent * 0.26);         // 월 관리비
+  // 1 KSK = 100만원이라 정수로 반올림하면 100만원 단위로 뭉개진다.
+  // (원룸 임대료 1.32 → 1, 관리비 0.343 → 0 으로 사라졌다) 최소 단위까지 남긴다.
+  e.rent  = q6(e.price * e.rentPct);   // 월 임대료 (수익률은 용도별로 다르다)
+  e.fee   = q6(e.rent * 0.26);         // 월 관리비
 });
 
 const estFind  = id => ESTATES.find(function(x){ return x.id === id; });
