@@ -89,6 +89,18 @@ button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
   .btns{gap:8px}
   .btns button{flex:1 1 auto}
 }
+
+/* 병렬 작업용 예약 구역 — 각 스킬은 자기 구역 안에서만 CSS 를 추가한다 */
+/* ==== [F2:부동산] CSS 시작 ==== */
+/* ==== [F2:부동산] CSS 끝 ==== */
+/* ==== [F3:채굴인프라] CSS 시작 ==== */
+/* ==== [F3:채굴인프라] CSS 끝 ==== */
+/* ==== [F4:살림살이] CSS 시작 ==== */
+/* ==== [F4:살림살이] CSS 끝 ==== */
+/* ==== [F5:월정산] CSS 시작 ==== */
+/* ==== [F5:월정산] CSS 끝 ==== */
+/* ==== [F8:직업] CSS 시작 ==== */
+/* ==== [F8:직업] CSS 끝 ==== */
 </style>
 </head>
 <body>
@@ -194,6 +206,18 @@ button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
       <h2>원장</h2>
       <div id="log"></div>
     </div>
+
+    <!-- 병렬 작업용 예약 구역 — 각 스킬은 자기 구역 안에만 패널을 넣는다 -->
+    <!-- ==== [F2:부동산] 패널 시작 ==== -->
+    <!-- ==== [F2:부동산] 패널 끝 ==== -->
+    <!-- ==== [F3:채굴인프라] 패널 시작 ==== -->
+    <!-- ==== [F3:채굴인프라] 패널 끝 ==== -->
+    <!-- ==== [F4:살림살이] 패널 시작 ==== -->
+    <!-- ==== [F4:살림살이] 패널 끝 ==== -->
+    <!-- ==== [F5:월정산] 패널 시작 ==== -->
+    <!-- ==== [F5:월정산] 패널 끝 ==== -->
+    <!-- ==== [F8:직업] 패널 시작 ==== -->
+    <!-- ==== [F8:직업] 패널 끝 ==== -->
 
   </div>
 </div>
@@ -323,11 +347,13 @@ const START_CASH   = 500000;
 const SAVE_KEY     = "ksk_coin_v4";
 
 // 기기 자원을 최소로 쓰기 위한 예산.
-// 1단계(초기 분배 PoW)는 DUTY 프레임 중 한 번만, 그때도 HASH_MS 만큼만 해시한다.
-//   → CPU 점유 ≈ HASH_MS / (16.7ms × DUTY) ≈ 6%.  옛 방식은 100% 를 썼다.
-const COARSE  = window.matchMedia && matchMedia("(pointer:coarse)").matches;
-const HASH_MS = COARSE ? 2 : 3;
-const DUTY    = 3;
+// 1단계(초기 분배 PoW)는 DUTY 프레임 중 한 번만, 그때도 hashMs() 만큼만 해시한다.
+//   → CPU 점유 ≈ hashMs() / (16.7ms × DUTY) ≈ 6%.  옛 방식은 100% 를 썼다.
+// 로드 시점에 한 번만 정하면 태블릿 회전이나 늦게 붙는 터치 입력을 놓친다.
+// 호출할 때마다 판정해 예산을 정한다.
+const isCoarse = () => !!(window.matchMedia && matchMedia("(pointer:coarse)").matches);
+const hashMs   = () => isCoarse() ? 2 : 3;
+const DUTY     = 3;
 
 // 2단계 — 지분증명(PoS). 보안은 해시파워가 아니라 '스테이크 몰수'에서 나온다.
 const MIN_STAKE  = 32000;   // 검증자 1좌 최소 스테이크 (이더리움 32 ETH 를 흉내)
@@ -564,9 +590,10 @@ function mineFrame(){
   const dt = performance.now() - t0;
   M.hashes += tried;                       // 배치 전체가 아니라 실제 시도한 횟수
 
-  // 배치 크기 자동 조정 — 한 번 일할 때 HASH_MS 를 넘지 않게
-  if(dt > HASH_MS + 1 && M.batch > 50) M.batch = Math.floor(M.batch * 0.7);
-  else if(dt < HASH_MS - 1) M.batch = Math.min(60000, Math.floor(M.batch * 1.2));
+  // 배치 크기 자동 조정 — 한 번 일할 때 예산(PC 3ms · 모바일 2ms)을 넘지 않게
+  const budget = hashMs();
+  if(dt > budget + 1 && M.batch > 50) M.batch = Math.floor(M.batch * 0.7);
+  else if(dt < budget - 1) M.batch = Math.min(60000, Math.floor(M.batch * 1.2));
 
   // 해시레이트 측정
   const now = performance.now();
@@ -822,7 +849,7 @@ function render(){
   $("mMode").textContent  = pos ? "PoS · 슬래싱으로 보안" : "PoW · 절약 모드";
   $("mLoad").textContent  = pos
     ? "12초에 해시 1회 (사실상 0)"
-    : "CPU 약 "+(HASH_MS/(16.7*DUTY)*100).toFixed(0)+"% (프레임 "+DUTY+"개당 "+HASH_MS+"ms)";
+    : "CPU 약 "+(hashMs()/(16.7*DUTY)*100).toFixed(0)+"% (프레임 "+DUTY+"개당 "+hashMs()+"ms)";
   $("bMine").textContent  = M.on
     ? (pos ? "검증 정지" : "채굴 정지")
     : (pos ? "검증 시작" : "채굴 시작");
@@ -866,6 +893,18 @@ function render(){
     b.disabled = S.cash < r.cost;
   });
   drawChart();
+}
+
+/* ─────────────────────────────────────────────────────────
+   10.5 확장 훅 — 병렬로 붙는 기능들이 여기에 자기 함수를 등록한다.
+   메인 루프와 렌더를 직접 고치지 않아도 되므로 구역 충돌이 없다.
+   ───────────────────────────────────────────────────────── */
+const tickHooks   = [];   // fn(dt) — 매 500ms
+const renderHooks = [];   // fn()   — 매 500ms
+function runHooks(list, arg){
+  for(let i=0;i<list.length;i++){
+    try{ list[i](arg); }catch(e){ /* 한 기능의 오류가 세계를 멈추지 않게 */ }
+  }
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -956,15 +995,42 @@ document.addEventListener("click", function(e){
 $("log").innerHTML = S.log.map(l => "<div>"+l+"</div>").join("");
 renderRigs();
 
+
+/* ─────────────────────────────────────────────────────────
+   13. 병렬 작업용 예약 구역
+   각 스킬은 자기 구역 안에만 코드를 쓴다. 구역 밖을 고쳐야 하면
+   ksk-contract 스킬의 '공유 접점' 절차를 따른다.
+   ───────────────────────────────────────────────────────── */
+/* ==== [F2:부동산] JS 시작 ==== */
+// 상태: freshState() 에 필드 추가 · 렌더: renderHooks 에 함수 등록
+/* ==== [F2:부동산] JS 끝 ==== */
+
+/* ==== [F3:채굴인프라] JS 시작 ==== */
+// 상태: freshState() 에 필드 추가 · 렌더: renderHooks 에 함수 등록
+/* ==== [F3:채굴인프라] JS 끝 ==== */
+
+/* ==== [F4:살림살이] JS 시작 ==== */
+// 상태: freshState() 에 필드 추가 · 렌더: renderHooks 에 함수 등록
+/* ==== [F4:살림살이] JS 끝 ==== */
+
+/* ==== [F5:월정산] JS 시작 ==== */
+// 상태: freshState() 에 필드 추가 · 렌더: renderHooks 에 함수 등록
+/* ==== [F5:월정산] JS 끝 ==== */
+
+/* ==== [F8:직업] JS 시작 ==== */
+// 상태: freshState() 에 필드 추가 · 렌더: renderHooks 에 함수 등록
+/* ==== [F8:직업] JS 끝 ==== */
+
 let last = performance.now();
 setInterval(function(){
   const now = performance.now();
   // 탭이 백그라운드였다면 dt 가 수백 초로 튄다 — 그만큼 요금을 물리면 즉시 파산한다
   const dt = Math.min((now-last)/1000, 2);
   last = now;
-  if(!S.over){ tickWorld(dt); tickMarket(dt); }
+  if(!S.over){ tickWorld(dt); tickMarket(dt); runHooks(tickHooks, dt); }
   render();
   renderRigs();
+  runHooks(renderHooks);
 }, 500);
 
 setInterval(save, 5000);
