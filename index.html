@@ -171,7 +171,7 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
 
   <div id="hud">
     <div class="stat"><b>보유 KSK</b><i id="sCoin">0</i></div>
-    <div class="stat"><b>현금 (원)</b><i id="sCash">0</i></div>
+    <div class="stat"><b>영구 소각</b><i id="sBurn">0</i></div>
     <div class="stat"><b>KSK 시세</b><i id="sPrice">0</i></div>
     <div class="stat"><b>해시레이트</b><i id="sHash">0</i></div>
     <div class="stat"><b>내 지분</b><i id="sShare">0%</i></div>
@@ -185,8 +185,8 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
       <div>
         <div class="row"><span>전기요금 단가 (살림용)</span><b id="rElec">—</b></div>
         <div class="row"><span>통신비 (대당 월)</span><b id="rPlan">—</b></div>
-        <div class="sub">채굴 비용은 <b>통신비뿐</b>이다 — 폰 충전 전기는 월 350원 수준이라 청구하지 않는다.
-          전기요금은 냉장고·에어컨이 있는 살림살이에만 매긴다</div>
+        <div class="sub">채굴 비용은 <b>통신비뿐</b>입니다 — 폰 충전 전기는 미미해서 청구하지 않습니다.
+          전기요금은 냉장고·에어컨이 있는 살림살이에만 매깁니다</div>
       </div>
       <div>
         <div class="row"><span>수요 지수</span><b id="rSent">—</b></div>
@@ -225,19 +225,18 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
 
     <div class="panel" data-tab="market">
       <h2>시장</h2>
-      <div class="price"><span id="kPrice">0</span> <span style="font-size:14px" class="dimtxt">원</span>
+      <div class="price"><span id="kPrice">0</span> <span style="font-size:14px" class="dimtxt">가치 지수</span>
         <span id="kChg" style="font-size:14px"></span></div>
       <canvas id="chart"></canvas>
       <div class="row"><span>기준가 × 희소성 × 심리</span><b id="kFair">—</b></div>
       <div class="row"><span>원가하한 (통신비 기준)</span><b id="kFloor">—</b></div>
-      <div class="row"><span>보유 KSK 평가액</span><b id="kValue">—</b></div>
-      <div class="row"><span>전송 수수료 (누적)</span><b id="kFee">0.01% · 0원</b></div>
-      <div class="btns">
-        <button class="sell sm" data-sell="0.1">10% 매도</button>
-        <button class="sell sm" data-sell="1">전량 매도</button>
-        <button class="buy sm" data-buy="0.1">현금 10% 매수</button>
-      </div>
-      <div class="sub">팔면 시세가 눌리고, 사면 밀려 올라갑니다 (슬리피지)</div>
+      <div class="row"><span><b>물가 배수</b> (코인 구매력)</span><b id="kIdx">—</b></div>
+      <div class="row"><span>영구 소각 (수수료·세금)</span><b id="kBurn" class="down">—</b></div>
+      <div class="sub"><b>코인이 유일한 화폐입니다.</b> 원화로 바꾸는 거래소가 없습니다 —
+        집·가전·생활비·월급 전부 KSK로 직접 오갑니다. 코인이 귀해지면(가치 지수↑)
+        <b>물가 배수가 내려가</b> 같은 물건을 더 적은 코인으로 삽니다.
+        수수료·세금(전송 0.01% · 취득세 4.6% · 중개 0.5% · 보유세)은 아무에게도 가지 않고
+        <b>영구 소각</b>돼 공급에서 사라집니다.</div>
     </div>
 
     <div class="panel" id="stakePanel" data-tab="mine" hidden>
@@ -263,9 +262,10 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
 
     <div class="panel" data-tab="asset">
       <h2>순자산</h2>
-      <div class="price"><span id="aNet">0</span> <span style="font-size:14px" class="dimtxt">원</span></div>
+      <div class="price"><span id="aNet">0</span> <span style="font-size:14px" class="dimtxt">KSK</span></div>
       <hr>
-      <div class="row"><span>현금</span><b id="aCash">—</b></div>
+      <div class="row"><span>보유 KSK (유동)</span><b id="aCash">—</b></div>
+      <div class="row"><span>원화 참조 (1 KSK = 100만원)</span><b id="aWon" class="dimtxt">—</b></div>
       <div class="row"><span>보유 KSK 평가액</span><b id="aCoin">—</b></div>
       <div class="row"><span>스테이크 평가액</span><b id="aStake">—</b></div>
       <div class="row" id="aEstateRow" hidden><span>부동산 평가액</span><b id="aEstate">—</b></div>
@@ -365,7 +365,7 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
       <div class="row"><span>학력 / 보유 자격</span><b id="jEdu">—</b></div>
       <div class="btns">
         <button id="jQuit" class="ghost sm" disabled>퇴사</button>
-        <button id="jAgency" class="buy sm" hidden>중개사무소 개업 (2,000,000원)</button>
+        <button id="jAgency" class="buy sm" hidden>중개사무소 개업 (2억 KSK)</button>
       </div>
       <div id="jobList"></div>
       <div class="sub">월급은 <b>초기의 방어선</b>입니다 — 통신비와 살림 전기요금을 덮어 주니
@@ -389,17 +389,21 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
     <h1>KSK <span style="color:var(--gold)">COIN</span></h1>
     <p>브라우저가 실제로 SHA-256 해시를 돌려 목표값 이하의 논스를 찾습니다. 가짜 진행바가 아니라
        진짜 계산이고, 블록이 나오는 순간은 계산의 결과입니다.</p>
+    <p><b>KSK가 유일한 화폐입니다.</b> 원화로 바꾸는 거래소가 없습니다 —
+       집·가전·생활비·월급이 전부 코인으로 오갑니다. 코인이 귀해지면 물가가 내려가
+       같은 물건을 더 적은 코인으로 삽니다.</p>
     <p>채굴 장비는 <b>휴대폰</b>입니다. 쓰던 구형 폰 한 대로 시작해 <b>채굴 풀</b>에 참여하고,
        폰을 늘리거나 좋은 폰으로 바꿔 지분을 키웁니다. 비용은 <b>대당 통신비</b>뿐입니다 —
-       폰 충전 전기는 월 350원 수준이라 청구하지 않습니다.</p>
+       폰 충전 전기는 미미해서 청구하지 않습니다.</p>
     <p>이 세계의 시간은 <b>1초가 1시간</b>으로 흐릅니다. 50년을 다 캐려면 약 5일이 걸립니다.</p>
     <div class="notice">⚠ 시뮬레이션입니다. 실제 블록체인에 발행하지 않고, 실제 화폐가 드나들지 않습니다.
-      KSK와 게임 내 원화는 현실 가치가 없는 숫자입니다. 투자 조언이 아닙니다.</div>
-    <div class="row"><span>시작 자금</span><b>500,000원</b></div>
+      KSK는 현실 가치가 없는 숫자입니다. 투자 조언이 아닙니다.</div>
+    <div class="row"><span>초기 지급</span><b>5,000만 KSK</b></div>
     <div class="row"><span>총 발행 상한</span><b>50억 KSK</b></div>
     <div class="row"><span>총 발행 기간</span><b>50년 (반감기 25회 · 2년마다)</b></div>
     <div class="row"><span>초기 블록 보상</span><b>250만 KSK · 블록 17.5초</b></div>
-    <div class="row"><span>시작 시세</span><b>0.01원 (1원 = 100 KSK)</b></div>
+    <div class="row"><span>화폐</span><b>KSK 하나뿐 — 원화 없음</b></div>
+    <div class="row"><span>단위 참조</span><b>1 KSK ≈ 100만원 · 최소 0.000001 KSK</b></div>
     <div class="row"><span>시작 지분 / 방식</span><b>4% · 채굴 풀 (연속 지급)</b></div>
     <p style="margin-top:12px">외부 연동이 없어 인터넷 없이도 돌아갑니다. 여러분의 PC나 휴대폰이
        직접 해시를 돌립니다 — 시작하면 이 기기의 속도를 2~3초 재고 그에 맞춰 난이도를 정하므로,
@@ -501,14 +505,24 @@ const MAX_BLOCKS   = HALVING * ERAS;
 const TARGET_SEC   = 17.52;    // 목표 블록 시간 (실제초 = 게임시간)
 const HOURS_PER_YR = 8760;     // 게임 1년 = 8,760 게임시간
 const BASE_PRICE   = 0.01;     // 시세 기준가 (원/KSK) — 1원 = 100 KSK
-const ELEC_BASE    = 120;      // 전기요금 단가 (원/kWh) — 살림살이(F4) 전용
+const ELEC_BASE    = 0.00012; // 전기요금 단가 (120원/kWh) — 살림살이(F4) 전용
 // 원가하한 — 채굴 비용이 통신비뿐이므로 그 기준으로 잡는다.
 // "회선 하나(월 5,000원)로 한 달에 70만 KSK 를 캐는 한계 채굴자" 의 원가.
-const KSK_PER_PLAN = 700000;
-const PLAN_COST    = 5000;     // 폰 1대당 월 통신비 (원) — 폰 채굴의 주된 비용
+const KSK_PER_PLAN = 0.0714;   // 한계 채굴자가 회선 하나로 한 달에 캐는 양 (원가하한 산정)
+// 코인이 유일한 화폐다. 모든 설계값은 **기본 KSK** 이고, 지불 시 물가 배수를 곱한다.
+//
+// 환산 기준: **1 KSK = 100만원**. 최소 단위는 **0.000001 KSK = 1원** 이다.
+// 총 발행 50억 KSK × 100만원 = 5,000조원 — 비트코인 시가총액의 약 2.5배로 무리 없다.
+// 대신 **내 지분을 현실화했다.** 폰 하나가 세계의 4% 라는 건 애초에 비현실적이었고,
+// 실제 폰 채굴의 지분은 0.0000024% 수준이다. 그래야 초당 수령이 소수점 6자리로 떨어진다.
+// 그 결과 직접 블록 발견은 사실상 불가능해진다 — 현실에서도 폰 솔로 채굴은 그렇다.
+// 그래서 채굴 풀이 선택이 아니라 필수가 된다.
+const WON_PER_KSK  = 1000000; // 1 KSK 의 원화 참조 가치 (표시용)
+const KSK_MIN      = 0.000001; // 최소 단위 = 1원
+const PLAN_COST    = 0.05;     // 폰 1대당 월 통신비 (5만원)
 const MONTH_HOURS  = 730;      // 게임 한 달 (8760 ÷ 12)
-const START_SHARE  = 0.04;     // 폰 한 대로 출발하는 채굴 풀 지분 (4%)
-const START_CASH   = 500000;
+const START_SHARE  = 2.4e-8;   // 폰 한 대의 실제 채굴 풀 지분 (0.0000024%)
+const START_COIN   = 5;        // 초기 지급 (500만원)
 const SAVE_KEY     = "ksk_coin_v4";
 
 // 기기 자원을 최소로 쓰기 위한 예산.
@@ -536,11 +550,11 @@ const FEE_RATE   = 0.0001;  // 전송·거래 수수료 0.01%
 // 폰은 전기를 거의 안 쓰므로 실제 비용은 전기요금이 아니라 대당 통신비다.
 // → 요금제는 대수만큼 내니 "약한 폰 여러 대"보다 "센 폰"이 유리하다. 현실과 같다.
 const RIGS = [
-  { id:"old",    name:"구형 스마트폰",   mult:10, w:4,  cost:80000   },
-  { id:"used",   name:"중고 보급형",     mult:16, w:6,  cost:180000  },
-  { id:"budget", name:"신품 보급형",     mult:30, w:8,  cost:400000  },
-  { id:"flag",   name:"플래그십",       mult:70, w:11, cost:1200000 },
-  { id:"tablet", name:"태블릿",         mult:110, w:18, cost:1900000 }
+  { id:"old",    name:"구형 스마트폰",  mult:10,  w:4,  cost:0.8  },   //   80만원
+  { id:"used",   name:"중고 보급형",    mult:16,  w:6,  cost:1.8  },   //  180만원
+  { id:"budget", name:"신품 보급형",    mult:30,  w:8,  cost:4.0  },   //  400만원
+  { id:"flag",   name:"플래그십",       mult:70,  w:11, cost:12.0 },   // 1,200만원
+  { id:"tablet", name:"태블릿",         mult:110, w:18, cost:19.0 }    // 1,900만원
 ];
 
 /* ─────────────────────────────────────────────────────────
@@ -550,9 +564,10 @@ let S = null;
 
 function freshState(){
   return {
-    coin: 0, cash: START_CASH, blocks: 0,
-    issued: 0,            // 세계 전체 발행량 (내 몫이 아니라 네트워크 전체)
-    mined: 0,             // 내가 받은 양 (풀 지급 + 검증 보상 + 발견 보너스)
+    coin: START_COIN, blocks: 0,
+    issued: START_COIN,   // 세계 전체 발행량 — 초기 지급도 발행의 일부로 센다
+    mined: START_COIN,    // 내가 받은 양 (초기 지급 + 풀 지급 + 검증 보상 + 발견 보너스)
+    burned: 0,            // 수수료·세금으로 영구 소각된 양
     counts: { old:1, used:0, budget:0, flag:0, tablet:0 },  // 쓰던 구형 폰 1대로 시작
     netHash: null,        // 네트워크 해시레이트 (실측 뒤 설정)
     baseHash: null,       // 내 기준 해시레이트 — 경제 계산을 측정 잡음에서 떼어 놓는다
@@ -566,7 +581,7 @@ function freshState(){
     attestTimer: 0,
     slashed: 0,           // 미가동 누출로 잃은 양
     fees: 0,              // 누적 수수료 (0.01%)
-    fin: { done: 0, cash0: null, last: null, living: "frugal" },   // F5 월정산·생활비
+    fin: { done: 0, coin0: null, last: null, living: "frugal" },   // F5 월정산·생활비
     job: { id: null, months: 0, certs: [], edu: 0, study: null, agency: false },   // F8 직업
     hh: { items: {}, placedAt: null },   // F4 살림살이 — items: {품목id:{n:개수, age:경과 게임개월}}
     mine: { at: null, place: {}, penalty: 0 },   // F3 채굴 인프라 — at: 채굴장 건물id, place: {폰id:대수}
@@ -595,7 +610,7 @@ const elecRate  = () => ELEC_BASE;                              // 살림살이(
 const sentiment = () => S.demand;                               // 내부 수요 엔진
 const scarcity  = () => CAP / Math.max(CAP - S.issued, 1);      // 세계가 캘수록 커진다
 const fairPrice = () => BASE_PRICE * scarcity() * sentiment();
-const costFloor = () => PLAN_COST / KSK_PER_PLAN;               // 이 아래로는 아무도 안 판다
+const costFloor = () => BASE_PRICE * (PLAN_COST / KSK_PER_PLAN); // 이 아래로는 아무도 안 판다
 const gameYears = () => S.blocks * TARGET_SEC / HOURS_PER_YR;   // 세계의 경과 연수
 const era       = () => Math.floor(S.blocks / HALVING);
 
@@ -607,7 +622,7 @@ const phoneCount = () => RIGS.reduce((a,r) => a + S.counts[r.id], 0);
 // 채굴 비용은 **통신비만**이다. 폰 충전 전기는 구형 스마트폰이 월 350원 — 통신비 5,000원의
 // 7% 로, 화면에 한 줄 차지할 값이 아니고 현실에서도 생활 전기에 묻혀 아무도 따로 인식하지
 // 않는다. 전기요금은 체감되는 곳(살림살이 — 냉장고·에어컨 월 42,924원)에만 남겼다.
-const costPerSec = () => PLAN_COST/MONTH_HOURS*phoneCount();
+const costPerSec = () => cost(PLAN_COST/MONTH_HOURS*phoneCount());
 const planPerSec = () => PLAN_COST/MONTH_HOURS*phoneCount();
 
 function reward(){
@@ -698,16 +713,35 @@ function merge(){
    5. 포맷
    ───────────────────────────────────────────────────────── */
 const won  = v => Math.round(v).toLocaleString("ko-KR");
-// 50억 규모라 억·만 단위로 접어 읽는다
+// 최소 단위가 0.000001 KSK (=1원) 이라 작은 값은 소수점 6자리까지 보여야 한다.
+// 큰 값(세계 발행량 등)은 억·만 단위로 접어 읽는다.
 function ksk(v){
-  if(v >= 1e8) return (v/1e8).toFixed(2) + "억";
-  if(v >= 1e4) return (v/1e4).toFixed(1) + "만";
-  if(v >= 1)   return v.toFixed(1);
-  return v.toFixed(3);
+  if(!isFinite(v)) return "—";
+  const a = Math.abs(v);
+  if(a >= 1e8)    return (v/1e8).toFixed(2) + "억";
+  if(a >= 1e4)    return (v/1e4).toFixed(1) + "만";
+  if(a >= 100)    return v.toFixed(1);
+  if(a >= 1)      return v.toFixed(3);
+  if(a >= 0.001)  return v.toFixed(5);
+  if(a === 0)     return "0";
+  return v.toFixed(6);                    // 최소 단위까지
 }
-const kskFull = v => Math.round(v).toLocaleString("ko-KR");
+// 로그용 — 소수점 6자리를 그대로 보여 준다
+function kskFull(v){
+  if(!isFinite(v)) return "—";
+  return Math.abs(v) >= 1000
+    ? v.toLocaleString("ko-KR", {maximumFractionDigits:3})
+    : v.toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
+}
+// 원화 참조 — 1 KSK = 100만원 기준. 이해를 돕는 표시일 뿐 거래는 KSK 로만 한다.
+function refWon(v){
+  const w = v * WON_PER_KSK;
+  if(Math.abs(w) >= 1e8) return (w/1e8).toFixed(2)+"억원";
+  if(Math.abs(w) >= 1e4) return Math.round(w/1e4).toLocaleString("ko-KR")+"만원";
+  return Math.round(w).toLocaleString("ko-KR")+"원";
+}
 // 1원 = 100 KSK 수준이라 시세는 소수점까지 보여야 한다
-const pw = v => v >= 100 ? won(v) : v.toFixed(5);
+const pw = v => v >= 100 ? ksk(v) : v.toFixed(5);
 function hs(v){
   if(v >= 1e9) return (v/1e9).toFixed(2)+" GH/s";
   if(v >= 1e6) return (v/1e6).toFixed(2)+" MH/s";
@@ -804,8 +838,10 @@ function mineFrame(){
   M.raf = requestAnimationFrame(mineFrame);
 }
 
-// 내가 직접 목표값 이하의 해시를 찾았을 때. 풀에서는 이게 소득의 본체가 아니라
-// 드물게 터지는 보너스다 — 그래서 진짜 계산이 무의미해지지 않는다.
+// 내가 직접 목표값 이하의 해시를 찾았을 때.
+// 지분을 현실화(0.0000024%)한 뒤로는 **사실상 일어나지 않는다** — 현실에서도 폰 솔로
+// 채굴은 평생 한 블록도 못 찾는다. 그래서 채굴 풀이 선택이 아니라 필수가 된다.
+// 코드는 그대로 둔다: 확률이 0 은 아니고, 일어나면 정직하게 보상해야 한다.
 function onSoloBlock(){
   S.solo++;
   const bonus = Math.min(reward() * 0.02, CAP - S.issued);
@@ -920,9 +956,9 @@ function tickMarket(dt){
   if(S.hist.length > 60) S.hist.shift();
 
   if(M.on){
-    S.cash -= costPerSec() * dt;                      // 통신비는 채굴 중에만
-    if(S.cash <= 0){
-      S.cash = 0;
+    S.coin -= costPerSec() * dt;                      // 통신비는 채굴 중에만
+    if(S.coin <= 0){
+      S.coin = 0;
       M.on = false; $("bMine").textContent = "채굴 시작";
       if(S.coin > 0) log("<b>현금 소진</b> — 채굴을 멈췄습니다. 코인을 팔아 요금을 내세요");
       else endGame(false);
@@ -930,25 +966,31 @@ function tickMarket(dt){
   }
 }
 
-function sell(frac){
-  const amt = S.coin * frac;
-  if(amt <= 0) return;
-  const gross = amt * S.price;
-  const fee   = gross * FEE_RATE;                     // 전송 수수료 0.01%
-  S.coin -= amt; S.cash += gross - fee; S.fees += fee;
-  S.slip -= frac >= 1 ? 0.08 : 0.03;                  // 팔면 눌린다
-  log("매도 "+ksk(amt)+" KSK → +"+won(gross-fee)+"원 (수수료 "+won(fee)+"원)");
-  save();
+// 원화가 사라지면서 매수·매도가 없어졌다. 코인이 유일한 화폐이므로 바꿀 대상이 없다.
+// 시세는 이제 '구매력' 으로 작동한다 — 코인이 귀해지면 같은 물건을 더 적은 코인으로 산다.
+// 지불 함수는 pay() 하나로 모았고, 수수료는 소각(burn)한다.
+
+// 물가 배수 — 시세가 기준가보다 오르면 1 아래로 내려가 KSK 표시 가격이 싸진다
+const priceIdx = () => clamp(BASE_PRICE / Math.max(S.price, 1e-9), 0.05, 20);
+// 기본 KSK 가격에 물가 배수를 곱한 실제 지불액
+const cost = baseKsk => baseKsk * priceIdx();
+
+// 코인을 쓴다. 수수료는 영구 소각한다 (EIP-1559 처럼 공급에서 사라진다).
+function pay(amount, label, feeRate){
+  const fee = amount * (feeRate === undefined ? FEE_RATE : feeRate);
+  const total = amount + fee;
+  if(S.coin < total) return false;
+  S.coin -= total;
+  S.spent += amount;
+  if(fee > 0){ S.burned += fee; S.fees += fee; }
+  return true;
 }
-function buy(frac){
-  const spend = S.cash * frac;
-  if(spend <= 0) return;
-  const fee = spend * FEE_RATE;                       // 전송 수수료 0.01%
-  const amt = (spend - fee) / S.price;
-  S.cash -= spend; S.coin += amt; S.fees += fee;
-  S.slip += 0.03;                                     // 사면 밀려 오른다
-  log("매수 "+ksk(amt)+" KSK ← -"+won(spend)+"원 (수수료 "+won(fee)+"원)");
-  save();
+// 코인을 받는다 (판매 대금 등). 수수료를 떼고 소각한다.
+function receive(amount, feeRate){
+  const fee = amount * (feeRate === undefined ? FEE_RATE : feeRate);
+  S.coin += amount - fee;
+  if(fee > 0){ S.burned += fee; S.fees += fee; }
+  return amount - fee;
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -969,10 +1011,9 @@ function breakEven(rig){
 }
 
 function buyRig(rig){
-  if(S.cash < rig.cost) return;
-  S.cash -= rig.cost; S.spent += rig.cost;
+  if(!pay(cost(rig.cost), rig.name)) return;
   S.counts[rig.id]++;
-  log("<b>"+rig.name+"</b> 구매 · -"+won(rig.cost)+"원 · 총 배수 "+totalMult()+"배");
+  log("<b>"+rig.name+"</b> 구매 · -"+ksk(rig.cost)+" KSK · 총 배수 "+totalMult()+"배");
   save(); renderRigs();
 }
 
@@ -981,14 +1022,14 @@ function renderRigs(){
     const be = breakEven(r);
     const beTxt = be === null ? "채굴을 시작하면 계산됩니다"
       : be === Infinity ? "—"
-      : pw(be) + "원";
+      : pw(be) + " KSK";
     const bad = be !== null && be !== Infinity && be > S.price;
     return '<div class="rig"><div class="top"><div>'+
       '<div class="nm">'+r.name+' <span class="dimtxt">×'+S.counts[r.id]+'</span></div>'+
-      '<div class="meta">속도 '+r.mult+'배 · '+won(r.cost)+'원 · 통신비 '+
-        won(PLAN_COST)+'원/월 <span class="dimtxt">(소비전력 '+r.w+'W — 청구 안 함)</span></div>'+
+      '<div class="meta">속도 '+r.mult+'배 · '+ksk(r.cost)+' KSK · 통신비 '+
+        ksk(PLAN_COST)+' KSK/월 <span class="dimtxt">(소비전력 '+r.w+'W — 청구 안 함)</span></div>'+
       '<div class="be">손익분기 시세 <b class="'+(bad?"down":"up")+'">'+beTxt+'</b></div>'+
-      '</div><button class="sm" data-rig="'+r.id+'"'+(S.cash<r.cost?" disabled":"")+'>구매</button>'+
+      '</div><button class="sm" data-rig="'+r.id+'"'+(S.coin < cost(r.cost)*(1+FEE_RATE) ? " disabled":"")+'>구매</button>'+
       '</div></div>';
   }).join("");
 }
@@ -1020,15 +1061,18 @@ function drawChart(){
 
 function render(){
   $("sCoin").textContent   = ksk(S.coin);
-  $("sCash").textContent   = won(S.cash);
+  $("sCoin").title         = refWon(S.coin);
+  $("sBurn").textContent   = ksk(S.burned);
   $("sPrice").textContent  = pw(S.price);
   $("sHash").textContent   = S.mode === "pos" ? "—" : hs(liveHash());
-  $("sShare").textContent  = (myShare()*100).toFixed(2)+"%";
+  const shPct = myShare()*100;
+  $("sShare").textContent  = shPct === 0 ? "0%"
+    : shPct < 0.001 ? shPct.toFixed(7)+"%" : shPct.toFixed(3)+"%";
   $("sSupply").textContent = (S.issued/CAP*100).toFixed(3)+"%";
   $("sYear").textContent   = gameYears().toFixed(1)+"년";
 
-  $("rElec").textContent = elecRate().toFixed(0)+"원/kWh";
-  $("rPlan").textContent = won(PLAN_COST)+"원 × "+phoneCount()+"대";
+  $("rElec").textContent = ksk(elecRate())+" KSK/kWh";
+  $("rPlan").textContent = ksk(PLAN_COST)+" KSK × "+phoneCount()+"대";
   $("rSent").textContent = "×"+S.demand.toFixed(3);
   $("rSent").className   = S.demand>=1 ? "up" : "down";
   $("rNet").textContent  = S.netHash ? hs(S.netHash) : "측정 전";
@@ -1040,9 +1084,9 @@ function render(){
                              (HALVING - S.blocks%HALVING).toLocaleString()+" 블록";
 
   const c = costPerSec(), rv = revPerSec(), nt = rv - c;
-  $("mCost").textContent = M.on ? "-"+won(c)+"원 (폰 "+phoneCount()+"대)" : "0원 (정지)";
-  $("mRev").textContent  = won(rv)+"원";
-  $("mNet").textContent  = (nt>=0?"+":"")+won(nt)+"원";
+  $("mCost").textContent = M.on ? "-"+ksk(c)+" KSK (폰 "+phoneCount()+"대)" : "0 KSK (정지)";
+  $("mRev").textContent  = ksk(rv)+" KSK";
+  $("mNet").textContent  = (nt>=0?"+":"")+ksk(nt)+" KSK";
   $("mNet").className    = nt>=0 ? "up" : "down";
 
   const pos = S.mode === "pos";
@@ -1084,14 +1128,16 @@ function render(){
   const ch = (S.price-S.prevPrice)/Math.max(S.prevPrice,1)*100;
   $("kChg").textContent = (ch>=0?"▲":"▼")+Math.abs(ch).toFixed(2)+"%";
   $("kChg").className   = ch>=0 ? "up" : "down";
-  $("kFair").textContent  = pw(fairPrice())+"원  (희소성 ×"+scarcity().toFixed(3)+")";
-  $("kFloor").textContent = pw(costFloor())+"원";
-  $("kValue").textContent = won(S.coin*S.price)+"원";
-  $("kFee").textContent   = (FEE_RATE*100).toFixed(2)+"% · "+won(S.fees)+"원";
+  $("kFair").textContent  = pw(fairPrice())+" (희소성 ×"+scarcity().toFixed(3)+")";
+  $("kFloor").textContent = pw(costFloor());
+  $("kIdx").textContent   = "×"+priceIdx().toFixed(3)+
+    (priceIdx() < 0.999 ? " — 물가 하락" : priceIdx() > 1.001 ? " — 물가 상승" : "");
+  $("kIdx").className     = priceIdx() < 0.999 ? "up" : priceIdx() > 1.001 ? "down" : "dimtxt";
+  $("kBurn").textContent  = ksk(S.burned)+" KSK";
 
   document.querySelectorAll("[data-rig]").forEach(function(b){
     const r = RIGS.find(x => x.id === b.dataset.rig);
-    b.disabled = S.cash < r.cost;
+    b.disabled = S.coin < cost(r.cost)*(1+FEE_RATE);
   });
   drawChart();
 }
@@ -1140,7 +1186,7 @@ function load(){
 
 function endGame(complete){
   M.on = false; S.over = true;
-  const net = S.cash + S.coin*S.price;
+  const net = S.coin + S.staked;
   $("eTitle").textContent = complete ? "발행 완료" : "파산";
   $("eDesc").textContent  = complete
     ? "21,000 KSK 가 모두 발행됐습니다. 더 캘 코인이 없습니다."
@@ -1149,9 +1195,9 @@ function endGame(complete){
     '<div class="row"><span>내 총 수령량</span><b>'+ksk(S.mined)+' KSK</b></div>'+
     '<div class="row"><span>세계 총 발행량</span><b>'+ksk(S.issued)+' KSK</b></div>'+
     '<div class="row"><span>찾은 블록</span><b>'+S.blocks+'</b></div>'+
-    '<div class="row"><span>최종 순자산</span><b>'+won(net)+'원</b></div>'+
-    '<div class="row"><span>최고 시세</span><b>'+won(S.peakPrice)+'원</b></div>'+
-    '<div class="row"><span>장비 투자</span><b>'+won(S.spent)+'원</b></div>';
+    '<div class="row"><span>최종 순자산</span><b>'+ksk(net)+' KSK</b></div>'+
+    '<div class="row"><span>최고 시세</span><b>'+ksk(S.peakPrice)+' KSK</b></div>'+
+    '<div class="row"><span>장비 투자</span><b>'+ksk(S.spent)+' KSK</b></div>';
   $("ovEnd").classList.remove("hide");
   save();
 }
@@ -1169,7 +1215,7 @@ if(!resumed) S = freshState();
 
 $("bStart").onclick = function(){
   $("ovStart").classList.add("hide");
-  if(!resumed) log("시작 — 시작 자금 "+won(START_CASH)+"원 · 소형 리그 1대");
+  if(!resumed) log("시작 — 초기 지급 "+ksk(START_COIN)+" KSK · 구형 스마트폰 1대");
   else log("이어서 진행 — 블록 "+S.blocks+" · "+ksk(S.coin)+" KSK");
 };
 $("bMine").onclick  = toggleMine;
@@ -1265,7 +1311,7 @@ function initTabs(){
 
 // 부동산·살림살이가 붙으면 estateValue() / hhValue() 를 전역으로 노출한다 (계약 §6)
 function netWorth(){
-  let v = S.cash + (S.coin + S.staked) * S.price;
+  let v = S.coin + S.staked;   // 코인이 유일한 화폐 — 환산 없이 그대로 더한다
   if(typeof estateValue === "function") v += estateValue() || 0;
   if(typeof hhValue     === "function") v += hhValue()     || 0;
   return v;
@@ -1273,21 +1319,22 @@ function netWorth(){
 
 function renderAssets(){
   if(!$("aNet")) return;
-  $("aNet").textContent   = won(netWorth());
-  $("aCash").textContent  = won(S.cash)+"원";
-  $("aCoin").textContent  = ksk(S.coin)+" KSK · "+won(S.coin*S.price)+"원";
-  $("aStake").textContent = ksk(S.staked)+" KSK · "+won(S.staked*S.price)+"원";
+  $("aNet").textContent   = ksk(netWorth());
+  $("aCash").textContent  = ksk(S.coin)+" KSK";
+  $("aWon").textContent   = refWon(netWorth());
+  $("aCoin").textContent  = ksk(S.coin)+" KSK";
+  $("aStake").textContent = ksk(S.staked)+" KSK";
   if(typeof estateValue === "function"){
     $("aEstateRow").hidden = false;
-    $("aEstate").textContent = won(estateValue() || 0)+"원";
+    $("aEstate").textContent = ksk(estateValue() || 0)+" KSK";
   }
   if(typeof hhValue === "function"){
     $("aGoodsRow").hidden = false;
-    $("aGoods").textContent = won(hhValue() || 0)+"원";
+    $("aGoods").textContent = ksk(hhValue() || 0)+" KSK";
   }
   $("aFrac").textContent = ksk(S.issued)+" KSK / "+
     (S.issued > 0 ? ((S.coin+S.staked)/S.issued*100).toFixed(2) : "0.00")+"%";
-  $("aFee").textContent = won(S.fees)+"원";
+  $("aFee").textContent = ksk(S.fees)+" KSK";
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -1302,29 +1349,44 @@ function renderAssets(){
 const ACQ_TAX = 0.046;   // 취득세 4.6%
 const BROKER  = 0.005;   // 중개수수료 0.5% — 중개사 자격이 있으면 면제 (F8.7)
 
+// `real` 은 **실제 참고 시세(억원)** 다. 화면에 함께 보여 준다.
+// 부동산끼리의 상대 비율은 실제를 그대로 지켰다 (타워팰리스 39억 : 관악우성 11.5억 = 3.41 : 1).
+// 다만 **생활비 대비 절대 배율은 압축**했다 — 현실에서 아파트는 월 생활비의 500~1,000배라
+// 그대로 담으면 50년 게임에서 한 채 사고 끝난다. 환산은 1억원 = 500만 기본 KSK.
+// 실시간 시세 연동은 백서 §9 대로 하지 않는다. 이 값은 고정 참고치다.
+// 1억원 = 5 KSK. 1 KSK = 100만원이니 실제로는 1억원 = 100 KSK 여야 하지만,
+// 그러면 관악우성(11.5억 = 1,150 KSK)이 50년 총 획득(약 120 KSK)을 훌쩍 넘어 못 산다.
+// 그래서 **부동산만 20배 압축**했다. 부동산끼리의 실제 비율은 그대로 지킨다.
+const EOK = 5;
 const ESTATES = [
-  { id:"oneroom", name:"원룸",           area:"부산 사하",   use:"주거",   py:8,
-    price:400000,    rent:11000,   fee:3000,   kw:0.3, cool:1.15 },
-  { id:"officetel", name:"오피스텔",     area:"서울 금천",   use:"주거",   py:12,
-    price:1200000,   rent:34000,   fee:9000,   kw:0.6, cool:1.10 },
-  { id:"villa_hd", name:"해운대 빌라",   area:"부산 해운대", use:"주거",   py:18,
-    price:2200000,   rent:60000,   fee:16000,  kw:0.9, cool:1.08 },
-  { id:"apt_suwon", name:"수원 아파트",  area:"경기 수원",   use:"주거",   py:25,
-    price:3500000,   rent:95000,   fee:26000,  kw:1.2, cool:1.05 },
-  { id:"shop_mapo", name:"마포 상가",    area:"서울 마포",   use:"상가",   py:20,
-    price:8000000,   rent:260000,  fee:65000,  kw:3.0, cool:1.00 },
-  { id:"jeju_land", name:"제주 토지",    area:"제주 서귀포", use:"토지",   py:300,
-    price:15000000,  rent:45000,   fee:12000,  kw:0,   cool:1.00 },
-  { id:"office_ydp", name:"여의도 오피스", area:"서울 여의도", use:"오피스", py:60,
-    price:20000000,  rent:640000,  fee:160000, kw:12,  cool:0.85 },
-  { id:"tower_palace", name:"타워팰리스", area:"서울 도곡",  use:"주거",   py:70,
-    price:60000000,  rent:1500000, fee:380000, kw:8,   cool:0.80 },
-  { id:"idc_gasan", name:"가산 데이터센터", area:"서울 가산", use:"오피스", py:200,
-    price:120000000, rent:3800000, fee:950000, kw:80,  cool:0.55 }
+  { id:"oneroom",   name:"원룸",              area:"부산 사하",   use:"주거",   py:8,
+    real:0.8,  rentPct:0.0165, kw:0.3, cool:1.15 },
+  { id:"officetel", name:"오피스텔",          area:"서울 금천",   use:"주거",   py:12,
+    real:2.2,  rentPct:0.0130, kw:0.6, cool:1.10 },
+  { id:"villa_hd",  name:"해운대 빌라",       area:"부산 해운대", use:"주거",   py:24,
+    real:4.5,  rentPct:0.0115, kw:0.9, cool:1.08 },
+  { id:"apt_suwon", name:"수원 아파트",       area:"경기 수원",   use:"주거",   py:32,
+    real:6.5,  rentPct:0.0105, kw:1.2, cool:1.05 },
+  { id:"apt_gwanak",name:"관악 우성아파트",   area:"서울 관악",   use:"주거",   py:30,
+    real:11.5, rentPct:0.0095, kw:1.1, cool:1.05 },
+  { id:"jeju_land", name:"제주 토지",         area:"제주 서귀포", use:"토지",   py:300,
+    real:15.0, rentPct:0.0030, kw:0,   cool:1.00 },
+  { id:"shop_mapo", name:"마포 상가",         area:"서울 마포",   use:"상가",   py:20,
+    real:18.0, rentPct:0.0140, kw:3.0, cool:1.00 },
+  { id:"office_ydp",name:"여의도 오피스",     area:"서울 여의도", use:"오피스", py:60,
+    real:30.0, rentPct:0.0135, kw:12,  cool:0.85 },
+  { id:"tower_palace", name:"타워팰리스",     area:"서울 도곡",   use:"주거",   py:50,
+    real:39.0, rentPct:0.0085, kw:8,   cool:0.80 }
 ];
+// 기본 KSK 가격과 임대료·관리비를 실제 참고 시세에서 파생시킨다
+ESTATES.forEach(function(e){
+  e.price = Math.round(e.real * EOK);
+  e.rent  = Math.round(e.price * e.rentPct);   // 월 임대료 (수익률은 용도별로 다르다)
+  e.fee   = Math.round(e.rent * 0.26);         // 월 관리비
+});
 
 const estFind  = id => ESTATES.find(function(x){ return x.id === id; });
-const estPrice = e  => e.price * S.re.mkt;
+const estPrice = e  => cost(e.price * S.re.mkt);
 const estOwned = id => S.re.owned.some(function(o){ return o.id === id; });
 
 // 계약 §6 — netWorth() 가 이 이름 그대로 읽어 간다. 이름을 바꾸면 대시보드가 놓친다.
@@ -1338,9 +1400,9 @@ function estateValue(){
 // F5(월 정산)가 붙으면 이 적립을 월말 일괄 정산으로 옮기고 아래 tickHook 의 해당 줄을
 // 지운다 — 그대로 두면 이중 청구가 된다 (ksk-monthly 스킬이 이 주석을 찾는다).
 function estNetRentPerSec(){
-  return S.re.owned.reduce(function(a,o){
+  return cost(S.re.owned.reduce(function(a,o){
     const e = estFind(o.id); return a + (e ? (e.rent - e.fee)/MONTH_HOURS : 0);
-  }, 0);
+  }, 0));
 }
 
 // 중개사 자격은 F8 이 jobHasCert() 를 노출한다. 아직 없으면 그냥 수수료를 낸다.
@@ -1351,11 +1413,12 @@ function buyEstate(id){
   if(!e || estOwned(id)) return;
   const p = estPrice(e), tax = p*ACQ_TAX, brk = brokerFree() ? 0 : p*BROKER;
   const total = p + tax + brk;
-  if(S.cash < total) return;
-  S.cash -= total; S.spent += total;
+  if(S.coin < total) return;
+  S.coin -= total; S.spent += total;
+  S.burned += tax + brk; S.fees += tax + brk;   // 취득세·중개수수료는 영구 소각된다
   S.re.owned.push({ id:id, price:p, yr:+gameYears().toFixed(2) });
-  log("<b>"+e.name+"</b> 매입 "+won(p)+"원 (취득세 "+won(tax)+
-      (brk ? " · 중개 "+won(brk) : " · 중개수수료 면제")+") · 총 -"+won(total)+"원");
+  log("<b>"+e.name+"</b> 매입 "+ksk(p)+" KSK (취득세 "+ksk(tax)+
+      (brk ? " · 중개 "+ksk(brk) : " · 중개수수료 면제")+") · 총 -"+ksk(total)+" KSK");
   save(); renderEstates();
 }
 
@@ -1365,8 +1428,9 @@ function sellEstate(id){
   const o = S.re.owned[i], e = estFind(id);
   const p = estPrice(e), brk = brokerFree() ? 0 : p*BROKER;
   const got = p - brk, gain = got - o.price;
-  S.cash += got; S.re.owned.splice(i, 1);
-  log("<b>"+e.name+"</b> 매도 "+won(got)+"원 · 손익 "+(gain>=0?"+":"")+won(gain)+"원");
+  S.coin += got; S.re.owned.splice(i, 1);
+  if(brk > 0){ S.burned += brk; S.fees += brk; }
+  log("<b>"+e.name+"</b> 매도 "+ksk(got)+" KSK · 손익 "+(gain>=0?"+":"")+ksk(gain)+" KSK");
   save(); renderEstates();
 }
 
@@ -1376,7 +1440,7 @@ tickHooks.push(function(dt){
   S.re.mkt += ((trend - S.re.mkt)*0.01 + (Math.random()-0.5)*0.006) * dt;
   S.re.mkt = clamp(S.re.mkt, 0.5, 4);
   // 임대료 적립 — F5 가 붙으면 이 줄을 월말 정산으로 옮긴다 (이중 청구 주의)
-  if(S.re.owned.length) S.cash += estNetRentPerSec() * dt;
+  if(S.re.owned.length) S.coin += estNetRentPerSec() * dt;
 });
 
 let reArea = "지역 전체", reUse = "용도 전체", reAfford = false;
@@ -1390,18 +1454,20 @@ function estCard(e, owned){
     return '<div class="est mine"><div class="top"><div>'+
       '<div class="nm">'+e.name+'<span class="tag">'+e.area+'</span>'+
         '<span class="tag">'+e.use+' '+e.py+'평</span></div>'+
-      '<div class="meta">매입 '+won(o.price)+'원 ('+o.yr+'년차) → 현재 '+won(p)+'원</div>'+
-      '<div class="num">평가손익 <b class="'+(up?"up":"down")+'">'+(up?"+":"")+won(gain)+'원</b>'+
-        ' · 월 임대 '+won(e.rent)+' − 관리비 '+won(e.fee)+'</div>'+
+      '<div class="meta">매입 '+ksk(o.price)+' KSK ('+o.yr+'년차) → 현재 '+ksk(p)+' KSK'+
+        ' <span class="dimtxt">· 실제 참고 '+e.real+'억원</span></div>'+
+      '<div class="num">평가손익 <b class="'+(up?"up":"down")+'">'+(up?"+":"")+ksk(gain)+' KSK</b>'+
+        ' · 월 임대 '+ksk(e.rent)+' − 관리비 '+ksk(e.fee)+'</div>'+
       '</div><button class="sell sm" data-sellre="'+e.id+'">매도</button></div></div>';
   }
-  const can = S.cash >= total;
+  const can = S.coin >= total;
   return '<div class="est"><div class="top"><div>'+
     '<div class="nm">'+e.name+'<span class="tag">'+e.area+'</span>'+
       '<span class="tag">'+e.use+' '+e.py+'평</span></div>'+
-    '<div class="meta">'+won(p)+'원 · 취득세·중개 포함 <b>'+won(total)+'원</b></div>'+
-    '<div class="num">월 임대 '+won(e.rent)+' − 관리비 '+won(e.fee)+
-      ' = <b class="up">'+won(e.rent-e.fee)+'원/월</b> · 수용 '+e.kw+'kW · 냉각 ×'+e.cool+'</div>'+
+    '<div class="meta">'+ksk(p)+' KSK · 취득세·중개 포함 <b>'+ksk(total)+' KSK</b>'+
+      ' <span class="dimtxt">· 실제 참고 '+e.real+'억원</span></div>'+
+    '<div class="num">월 임대 '+ksk(e.rent)+' − 관리비 '+ksk(e.fee)+
+      ' = <b class="up">'+ksk(e.rent-e.fee)+' KSK/월</b> · 수용 '+e.kw+'kW · 냉각 ×'+e.cool+'</div>'+
     '</div><button class="buy sm" data-buyre="'+e.id+'"'+(can?"":" disabled")+'>매입</button>'+
     '</div></div>';
 }
@@ -1410,8 +1476,8 @@ function renderEstates(){
   if(!$("reList")) return;
   $("reMkt").textContent = "×"+S.re.mkt.toFixed(3);
   $("reMkt").className    = S.re.mkt >= 1 ? "up" : "down";
-  $("reSum").textContent  = S.re.owned.length+"채 · "+won(estateValue())+"원 · +"+
-                            won(estNetRentPerSec())+"원/초";
+  $("reSum").textContent  = S.re.owned.length+"채 · "+ksk(estateValue())+" KSK · +"+
+                            ksk(estNetRentPerSec())+" KSK/초";
 
   const list = ESTATES.filter(function(e){
     if(estOwned(e.id)) return false;
@@ -1419,7 +1485,7 @@ function renderEstates(){
     if(reUse  !== "용도 전체" && e.use !== reUse) return false;
     if(reAfford){
       const p = estPrice(e);
-      if(S.cash < p + p*ACQ_TAX + (brokerFree() ? 0 : p*BROKER)) return false;
+      if(S.coin < p + p*ACQ_TAX + (brokerFree() ? 0 : p*BROKER)) return false;
     }
     return true;
   });
@@ -1523,17 +1589,17 @@ tickHooks.push(function(dt){
 
   // F0 가 이미 기준 통신비를 청구했다. 여기서는 그 차액만 조정한다.
   // coolFactor() < 1 이면 이 식은 현금을 더해 준다 — 할인이므로 의도한 부호다.
-  S.cash -= costPerSec() * (coolFactor() - 1) * dt;
+  S.coin -= costPerSec() * (coolFactor() - 1) * dt;
 
   // F3.6 소음·민원 — 주거용 건물에 회선을 몰아넣으면 이웃이 참지 않는다
   const e = minedAt();
   if(e && e.use === "주거" && S.mine.penalty <= 0 &&
      placedCount() > estLines(e)*0.8 && Math.random() < NIMBY_RATE*dt){
     const fine = e.fee * 2;
-    S.cash = Math.max(0, S.cash - fine);
+    S.coin = Math.max(0, S.coin - fine);
     S.mine.penalty = NIMBY_HOLD;
     log("<b>민원 발생</b> — 주거용 건물 <b>"+e.name+"</b> 의 회선이 한도의 80% 를 넘었습니다. "+
-        "벌금 "+won(fine)+"원 · "+NIMBY_HOLD+"초간 효율 할인 정지");
+        "벌금 "+ksk(fine)+" KSK · "+NIMBY_HOLD+"초간 효율 할인 정지");
     save();
   }
 });
@@ -1570,10 +1636,10 @@ function renderMine(){
   $("mCool").textContent = "×"+cf.toFixed(3)+
     (cf < 1 ? " (할인)" : cf > 1 ? " (효율 나쁨)" : "");
   $("mCool").className   = cf < 1 ? "up" : cf > 1 ? "down" : "dimtxt";
-  // sv 가 음수면 할인이 아니라 추가 비용이다 — "+-2원" 으로 찍히지 않게 나눠 쓴다
-  $("mSave").textContent = !M.on ? "0원 (채굴 정지)"
-    : sv >= 0 ? "+"+won(sv)+"원"
-    : won(-sv)+"원 추가 비용";
+  // sv 가 음수면 할인이 아니라 추가 비용이다 — "+-2 KSK" 으로 찍히지 않게 나눠 쓴다
+  $("mSave").textContent = !M.on ? "0 KSK (채굴 정지)"
+    : sv >= 0 ? "+"+ksk(sv)+" KSK"
+    : ksk(-sv)+" KSK 추가 비용";
   $("mSave").className   = sv >= 0 ? "up" : "down";
   $("mPenalty").textContent = S.mine.penalty > 0
     ? "민원 — 할인 정지 "+Math.ceil(S.mine.penalty)+"초 남음" : "정상";
@@ -1616,22 +1682,22 @@ const HH_FIX_RATE  = 0.6;   // 고장난 품목 교체 비용 = 원가의 60%
 
 const GOODS = [
   // 가전 — 전기를 먹는다
-  { id:"fridge",  name:"양문형 냉장고", cat:"가전",     cost:1200000, w:40,  grade:1, life:120 },
-  { id:"aircon",  name:"벽걸이 에어컨", cat:"가전",     cost:800000,  w:450, grade:1, life:96  },
-  { id:"washer",  name:"드럼 세탁기",   cat:"가전",     cost:700000,  w:30,  grade:1, life:108 },
-  { id:"tv",      name:"대형 TV",       cat:"가전",     cost:1500000, w:60,  grade:2, life:84  },
-  { id:"pc",      name:"데스크톱 PC",   cat:"가전",     cost:1300000, w:120, grade:1, life:60  },
+  { id:"fridge",  name:"양문형 냉장고", cat:"가전",     cost:1.2,  w:40,  grade:1, life:120 },
+  { id:"aircon",  name:"벽걸이 에어컨", cat:"가전",     cost:0.8,  w:450, grade:1, life:96  },
+  { id:"washer",  name:"드럼 세탁기",   cat:"가전",     cost:0.7,  w:30,  grade:1, life:108 },
+  { id:"tv",      name:"대형 TV",       cat:"가전",     cost:1.5,  w:60,  grade:2, life:84  },
+  { id:"pc",      name:"데스크톱 PC",   cat:"가전",     cost:1.3,  w:120, grade:1, life:60  },
   // 가구 — 전기 0, 등급 중간
-  { id:"bed",     name:"퀸 침대",       cat:"가구",     cost:600000,  w:0,   grade:3, life:180 },
-  { id:"sofa",    name:"패브릭 소파",   cat:"가구",     cost:900000,  w:0,   grade:4, life:144 },
-  { id:"table",   name:"원목 식탁",     cat:"가구",     cost:700000,  w:0,   grade:3, life:180 },
-  { id:"closet",  name:"붙박이 옷장",   cat:"가구",     cost:1100000, w:0,   grade:4, life:240 },
+  { id:"bed",     name:"퀸 침대",       cat:"가구",     cost:0.6,  w:0,   grade:3, life:180 },
+  { id:"sofa",    name:"패브릭 소파",   cat:"가구",     cost:0.9,  w:0,   grade:4, life:144 },
+  { id:"table",   name:"원목 식탁",     cat:"가구",     cost:0.7,  w:0,   grade:3, life:180 },
+  { id:"closet",  name:"붙박이 옷장",   cat:"가구",     cost:1.1,  w:0,   grade:4, life:240 },
   // 인테리어 — 등급이 높다
-  { id:"curtain", name:"암막 커튼",     cat:"인테리어", cost:300000,  w:0,   grade:2, life:96  },
-  { id:"light",   name:"간접 조명",     cat:"인테리어", cost:400000,  w:15,  grade:3, life:120 },
-  { id:"bath",    name:"욕실 리모델링", cat:"인테리어", cost:3500000, w:0,   grade:8, life:180 },
-  { id:"floor",   name:"원목 마루",     cat:"인테리어", cost:2500000, w:0,   grade:7, life:240 },
-  { id:"kitchen", name:"주방 리모델링", cat:"인테리어", cost:5000000, w:0,   grade:9, life:180 }
+  { id:"curtain", name:"암막 커튼",     cat:"인테리어", cost:0.3,  w:0,   grade:2, life:96  },
+  { id:"light",   name:"간접 조명",     cat:"인테리어", cost:0.4,  w:15,  grade:3, life:120 },
+  { id:"bath",    name:"욕실 리모델링", cat:"인테리어", cost:3.5,  w:0,   grade:8, life:180 },
+  { id:"floor",   name:"원목 마루",     cat:"인테리어", cost:2.5,  w:0,   grade:7, life:240 },
+  { id:"kitchen", name:"주방 리모델링", cat:"인테리어", cost:5.0,  w:0,   grade:9, life:180 }
 ];
 
 const goodFind = id => GOODS.find(function(g){ return g.id === id; });
@@ -1653,7 +1719,7 @@ function hhValue(){   // 잔존가치 — 남은 수명 비율만큼
   }, 0);
 }
 const hhGradeMul   = () => 1 + Math.min(hhGrade(), HH_GRADE_CAP)/HH_GRADE_CAP * 0.5;
-const hhElecPerSec = () => elecRate() * (hhWatts()/1000);
+const hhElecPerSec = () => cost(elecRate() * (hhWatts()/1000));
 
 // 살림을 놓은 건물. 주거용이고 아직 보유 중이어야 한다.
 function hhAtEstate(){
@@ -1668,16 +1734,16 @@ function hhAtEstate(){
 function hhRentBonusPerSec(){
   const e = hhAtEstate();
   if(!e) return 0;
-  return (e.rent - e.fee)/MONTH_HOURS * (hhGradeMul() - 1);
+  return cost((e.rent - e.fee)/MONTH_HOURS * (hhGradeMul() - 1));
 }
 
 function buyGood(id){
   const g = goodFind(id);
-  if(!g || S.cash < g.cost) return;
+  if(!g) return;
   const it = hhOf(id);
-  S.cash -= g.cost; S.spent += g.cost;
+  if(!pay(cost(g.cost), g.name)) return;
   S.hh.items[id] = { n: it.n + 1, age: it.n > 0 ? it.age : 0 };
-  log("<b>"+g.name+"</b> 구매 -"+won(g.cost)+"원 · 등급 +"+g.grade+
+  log("<b>"+g.name+"</b> 구매 -"+ksk(g.cost)+" KSK · 등급 +"+g.grade+
       (g.w ? " · 평균 "+g.w+"W" : ""));
   save(); renderHouse();
 }
@@ -1685,11 +1751,11 @@ function buyGood(id){
 function fixGood(id){
   const g = goodFind(id), it = hhOf(id);
   if(!g || it.n <= 0 || it.age < g.life) return;
-  const cost = g.cost * HH_FIX_RATE * it.n;
-  if(S.cash < cost) return;
-  S.cash -= cost; S.spent += cost;
+  // 지역 이름을 fixCost 로 둔다 — cost 로 두면 전역 cost() 를 가린다
+  const fixCost = cost(g.cost * HH_FIX_RATE * it.n);
+  if(!pay(fixCost, g.name)) return;
   S.hh.items[id] = { n: it.n, age: 0 };
-  log("<b>"+g.name+"</b> 교체 -"+won(cost)+"원 ("+it.n+"개) · 수명 복구");
+  log("<b>"+g.name+"</b> 교체 -"+ksk(fixCost)+" KSK ("+it.n+"개) · 수명 복구");
   save(); renderHouse();
 }
 
@@ -1710,10 +1776,10 @@ tickHooks.push(function(dt){
       log("<b>"+g.name+"</b> 수명이 끝났습니다 — 교체해야 다시 작동합니다");
   }
   // 살림 전기요금은 채굴을 끄든 켜든 나간다. 냉장고는 늘 돌아간다.
-  if(S.cash > 0) S.cash = Math.max(0, S.cash - hhElecPerSec() * dt);
+  if(S.coin > 0) S.coin = Math.max(0, S.coin - hhElecPerSec() * dt);
   // 인테리어 등급이 올린 임대료(증분). F5 가 붙으면 월말 정산으로 옮긴다.
   const bonus = hhRentBonusPerSec();
-  if(bonus > 0) S.cash += bonus * dt;
+  if(bonus > 0) S.coin += bonus * dt;
 });
 
 let hhCat = "전체";
@@ -1721,15 +1787,15 @@ let hhCat = "전체";
 function renderHouse(){
   if(!$("hhList")) return;
   const w = hhWatts();
-  $("hhW").textContent = w+"W · -"+won(hhElecPerSec())+"원/초";
+  $("hhW").textContent = w+"W · -"+ksk(hhElecPerSec())+" KSK/초";
   $("hhW").className   = w > 0 ? "down" : "dimtxt";
   $("hhG").textContent = hhGrade()+"점 · ×"+hhGradeMul().toFixed(3);
   $("hhG").className   = hhGrade() > 0 ? "up" : "dimtxt";
-  $("hhV").textContent = won(hhValue())+"원";
+  $("hhV").textContent = ksk(hhValue())+" KSK";
 
   const at = hhAtEstate(), bonus = hhRentBonusPerSec();
   $("hhPlace").textContent = at
-    ? at.name+" · 임대료 +"+won(bonus)+"원/초"
+    ? at.name+" · 임대료 +"+ksk(bonus)+" KSK/초"
     : (S.hh.placedAt ? "보관함 (주거용 건물이 아님)" : "보관함 — 등급 보너스 없음");
   $("hhPlace").className = at ? "up" : "dimtxt";
 
@@ -1765,14 +1831,14 @@ function renderHouse(){
       const fixCost = g.cost * HH_FIX_RATE * it.n;
       const btn = broken
         ? '<button class="sell sm" data-hhfix="'+g.id+'"'+
-          (S.cash < fixCost ? " disabled" : "")+'>교체 '+won(fixCost)+'원</button>'
+          (S.coin < fixCost ? " disabled" : "")+'>교체 '+ksk(fixCost)+' KSK</button>'
         : '<button class="buy sm" data-hhbuy="'+g.id+'"'+
-          (S.cash < g.cost ? " disabled" : "")+'>구매</button>';
+          (S.coin < g.cost ? " disabled" : "")+'>구매</button>';
       return '<div class="'+cls+'"><div>'+
         '<div class="nm">'+g.name+
           (it.n ? ' <span class="dimtxt">×'+it.n+'</span>' : '')+
           (broken ? ' <span class="down">고장</span>' : '')+'</div>'+
-        '<div class="meta">'+g.cat+' · '+won(g.cost)+'원 · 등급 +'+g.grade+' · '+
+        '<div class="meta">'+g.cat+' · '+ksk(g.cost)+' KSK · 등급 +'+g.grade+' · '+
           (g.w ? '평균 '+g.w+'W' : '전기 없음')+' · 수명 '+g.life+'개월'+
           (it.n ? ' (남은 '+pct+'%)' : '')+'</div>'+
         lifeBar+'</div>'+btn+'</div>';
@@ -1816,15 +1882,15 @@ const TAX_RATE = 0.0015;   // 보유세 — 부동산 평가액의 0.15%/월 (�
 // 수준을 고르면 월 지출과 함께 **시험 합격률·승진 속도**가 달라진다 —
 // 문화생활과 자기계발이 커리어에 영향을 준다는 뜻이고, F8 이 이 값을 읽어 간다.
 const LIVING = [
-  { id:"frugal",  name:"절약형", cost:100000, study:0.85, tenure:0.8,
+  { id:"frugal",  name:"절약형", cost:1.0,  study:0.85, tenure:0.8,
     desc:"식비·교통비만. 문화생활 없음 — 시험 합격률과 승진이 느려진다" },
-  { id:"normal",  name:"표준형", cost:220000, study:1.00, tenure:1.0,
+  { id:"normal",  name:"표준형", cost:2.2,  study:1.00, tenure:1.0,
     desc:"식비·교통·의료보험 + 약간의 문화생활" },
-  { id:"comfort", name:"여유형", cost:450000, study:1.20, tenure:1.3,
+  { id:"comfort", name:"여유형", cost:4.5,  study:1.20, tenure:1.3,
     desc:"공연·여행·자기계발 포함 — 시험 합격률과 승진이 빨라진다" }
 ];
 const livingNow   = () => LIVING.find(function(l){ return l.id === S.fin.living; }) || LIVING[0];
-const livingPerSec = () => livingNow().cost / MONTH_HOURS;
+const livingPerSec = () => cost(livingNow().cost / MONTH_HOURS);
 // 계약 §5 패턴 — F8 이 typeof 가드로 읽어 간다. 이름을 바꾸면 효과가 사라진다.
 const livingStudyMul  = () => livingNow().study;
 const livingTenureMul = () => livingNow().tenure;
@@ -1833,8 +1899,8 @@ function setLiving(id){
   const l = LIVING.find(function(x){ return x.id === id; });
   if(!l || S.fin.living === id) return;
   S.fin.living = id;
-  log("생활 수준을 <b>"+l.name+"</b> 으로 바꿨습니다 — 월 "+won(l.cost)+
-      "원 · 시험 ×"+l.study+" · 승진 ×"+l.tenure);
+  log("생활 수준을 <b>"+l.name+"</b> 으로 바꿨습니다 — 월 "+ksk(l.cost)+
+      " KSK · 시험 ×"+l.study+" · 승진 ×"+l.tenure);
   save(); renderFin();
 }
 
@@ -1856,15 +1922,18 @@ function settle(){
   const tax   = holdingTax();
 
   // 실제로 걷는 것은 보유세뿐이다 (위 여섯 항목은 이미 초당으로 처리됐다)
-  if(tax > 0) S.cash = Math.max(0, S.cash - tax);
+  if(tax > 0){
+    const t = Math.min(tax, S.coin);
+    S.coin -= t; S.burned += t; S.fees += t;   // 보유세도 영구 소각된다
+  }
 
-  const real = S.cash - (S.fin.cash0 === null ? S.cash : S.fin.cash0);
+  const real = S.coin - (S.fin.coin0 === null ? S.coin : S.fin.coin0);
   S.fin.last = { m:S.fin.done, job:job, rent:rent, deco:deco,
                  plan:plan, hhel:hhel, live:live, tax:tax, real:real };
-  S.fin.cash0 = S.cash;
+  S.fin.coin0 = S.coin;
 
   log("<b>"+gYear()+"년차 "+gMonth()+"월 정산</b> — 순현금 "+
-      (real>=0?"+":"")+won(real)+"원"+(tax>0 ? " · 보유세 -"+won(tax)+"원" : ""));
+      (real>=0?"+":"")+ksk(real)+" KSK"+(tax>0 ? " · 보유세 -"+ksk(tax)+" KSK" : ""));
   recover();
 }
 
@@ -1891,12 +1960,12 @@ function recover(){
   if(S.over) return;
   const flow = netFlowPerSec();
   if(flow >= 0) return;                        // 흑자면 회생할 이유가 없다
-  if(S.cash > -flow * RECOVER_SEC) return;     // 아직 버틸 현금이 있다
+  if(S.coin > -flow * RECOVER_SEC) return;     // 아직 버틸 현금이 있다
 
   if(S.coin > 0){
     log("<b>현금 부족</b> — 보유 코인을 전량 매도해 메웁니다");
     sell(1);
-    if(S.cash > 0) return;
+    if(S.coin > 0) return;
   }
   if(S.re && S.re.owned.length){
     const cheapest = S.re.owned.slice().sort(function(a,b){
@@ -1911,11 +1980,11 @@ function recover(){
 }
 
 tickHooks.push(function(dt){
-  if(S.fin.cash0 === null) S.fin.cash0 = S.cash;
+  if(S.fin.coin0 === null) S.fin.coin0 = S.coin;
 
   // 생활비는 새 항목이므로 여기서 실제로 징수한다 (이중 청구가 아니다).
   // 다른 층과 일관되게 초당으로 빠져나간다 — 월말 명세에는 환산해서 보여준다.
-  if(S.cash > 0) S.cash = Math.max(0, S.cash - livingPerSec() * dt);
+  if(S.coin > 0) S.coin = Math.max(0, S.coin - livingPerSec() * dt);
 
   let guard = 0;
   while(Math.floor(worldMonths()) > S.fin.done && guard++ < 24){
@@ -1932,16 +2001,16 @@ function renderFin(){
   $("finNext").textContent = ((1-frac)*MONTH_HOURS).toFixed(0)+"초 뒤 ("+
     ((1-frac)*100).toFixed(0)+"% 남음)";
   const tax = holdingTax();
-  $("finTax").textContent = tax > 0 ? "-"+won(tax)+"원/월" : "0원 (보유 부동산 없음)";
+  $("finTax").textContent = tax > 0 ? "-"+ksk(tax)+" KSK/월" : "0 KSK (보유 부동산 없음)";
   $("finTax").className   = tax > 0 ? "down" : "dimtxt";
 
   const l = livingNow(), flow = netFlowPerSec();
-  $("finLiving").textContent = l.name+" · -"+won(l.cost)+"원/월";
-  $("finFlow").textContent   = (flow>=0?"+":"")+won(flow)+"원/초";
+  $("finLiving").textContent = l.name+" · -"+ksk(l.cost)+" KSK/월";
+  $("finFlow").textContent   = (flow>=0?"+":"")+ksk(flow)+" KSK/초";
   $("finFlow").className     = flow>=0 ? "up" : "down";
   $("finLivBtns").innerHTML = LIVING.map(function(x){
     return '<button class="sm'+(x.id===l.id?"":" ghost")+'" data-living="'+x.id+'">'+
-      x.name+' '+won(x.cost)+'원</button>';
+      x.name+' '+ksk(x.cost)+' KSK</button>';
   }).join("");
   $("finLivDesc").textContent = l.desc+" (시험 ×"+l.study+" · 승진 ×"+l.tenure+")";
 
@@ -1953,7 +2022,7 @@ function renderFin(){
   $("finLast").textContent = "지난 정산: "+L.m+"개월차";
   const row = (lbl, v, cls) => v === 0 ? "" :
     '<tr><td class="lbl">'+lbl+'</td><td class="'+cls+'">'+
-    (v>0?"+":"")+won(v)+'원</td></tr>';
+    (v>0?"+":"")+ksk(v)+' KSK</td></tr>';
   $("finTable").innerHTML =
     row("월급·중개 수입", L.job, "up") +
     row("임대수익 (관리비 차감)", L.rent, "up") +
@@ -1963,7 +2032,7 @@ function renderFin(){
     row("생활비 ("+livingNow().name+")", -(L.live||0), "down") +
     row("보유세 (실제 징수)", -L.tax, "down") +
     '<tr class="sum"><td>실제 순현금 변화</td><td class="'+
-      (L.real>=0?"up":"down")+'">'+(L.real>=0?"+":"")+won(L.real)+'원</td></tr>';
+      (L.real>=0?"up":"down")+'">'+(L.real>=0?"+":"")+ksk(L.real)+' KSK</td></tr>';
 }
 renderHooks.push(renderFin);
 
@@ -1981,24 +2050,24 @@ document.addEventListener("click", function(ev){
 // 균형: 초기 생활비 약 48,000원/월 · 폰 1대 채굴 41,667원/월 → 알바(120,000원)가 방어선.
 // 폰을 다 갖춘 채굴은 604,167원/월로 대기업 월급과 맞먹고, 부동산 임대가 최종 주력이다.
 const TENURE_CAP = 120;      // 승진 보정이 최대(+50%)에 닿는 근속 개월
-const AGENCY_FEE = 2000000;  // 중개사무소 개업 비용
-const AGENCY_PAY = 500000;   // 개업 기본 수입 (부동산 시세 배수를 곱한다)
+const AGENCY_FEE = 20.0;     // 중개사무소 개업 비용 (2,000만원)
+const AGENCY_PAY = 5.0;      // 개업 기본 수입 (500만원 · 부동산 시세 배수를 곱한다)
 
 const JOBS = [
-  { id:"parttime", name:"편의점 알바",   pay:120000,  hours:20, needEdu:0, needCert:null,        odds:0.95 },
-  { id:"sme",      name:"중소기업 사원", pay:300000,  hours:40, needEdu:0, needCert:null,        odds:0.60 },
-  { id:"realtor",  name:"부동산 중개사", pay:350000,  hours:40, needEdu:0, needCert:"realtor",   odds:0.90 },
-  { id:"civil",    name:"공무원",       pay:450000,  hours:40, needEdu:1, needCert:"civilexam", odds:0.50 },
-  { id:"corp",     name:"대기업 사원",   pay:700000,  hours:45, needEdu:1, needCert:null,        odds:0.35 },
-  { id:"exec",     name:"대기업 임원",   pay:1600000, hours:55, needEdu:2, needCert:null,        odds:0.15 }
+  { id:"parttime", name:"편의점 알바",   pay:1.2,  hours:20, needEdu:0, needCert:null,        odds:0.95 },
+  { id:"sme",      name:"중소기업 사 KSK", pay:3.0,  hours:40, needEdu:0, needCert:null,        odds:0.60 },
+  { id:"realtor",  name:"부동산 중개사", pay:3.5,  hours:40, needEdu:0, needCert:"realtor",   odds:0.90 },
+  { id:"civil",    name:"공무 KSK",       pay:4.5,  hours:40, needEdu:1, needCert:"civilexam", odds:0.50 },
+  { id:"corp",     name:"대기업 사 KSK",   pay:7.0,  hours:45, needEdu:1, needCert:null,        odds:0.35 },
+  { id:"exec",     name:"대기업 임 KSK",   pay:16.0, hours:55, needEdu:2, needCert:null,        odds:0.15 }
 ];
 
 // edu > 0 이면 합격 시 학력 단계가 그 값으로 오른다
 const CERTS = [
-  { id:"realtor",   name:"부동산 중개사 시험", fee:200000,  months:3,  odds:0.55, needEdu:0, edu:0 },
-  { id:"civilexam", name:"공무원 시험",       fee:150000,  months:6,  odds:0.30, needEdu:0, edu:0 },
-  { id:"degree",    name:"학사 학위",         fee:3000000, months:12, odds:0.90, needEdu:0, edu:1 },
-  { id:"master",    name:"석사 학위",         fee:5000000, months:12, odds:0.85, needEdu:1, edu:2 }
+  { id:"realtor",   name:"부동산 중개사 시험", fee:2.0,   months:3,  odds:0.55, needEdu:0, edu:0 },
+  { id:"civilexam", name:"공무원 시험",       fee:1.5,   months:6,  odds:0.30, needEdu:0, edu:0 },
+  { id:"degree",    name:"학사 학위",         fee:30.0,  months:12, odds:0.90, needEdu:0, edu:1 },
+  { id:"master",    name:"석사 학위",         fee:50.0,  months:12, odds:0.85, needEdu:1, edu:2 }
 ];
 
 const jobFind  = id => JOBS.find(function(j){ return j.id === id; });
@@ -2024,7 +2093,7 @@ function payNow(){
   if(S.job.agency && j.id === "realtor") return AGENCY_PAY * S.re.mkt * tenureMul();
   return j.pay * tenureMul();
 }
-const jobPayPerSec = () => payNow() / MONTH_HOURS;
+const jobPayPerSec = () => cost(payNow() / MONTH_HOURS);
 
 // 지원 가능 여부와 **왜 안 되는지**를 함께 돌려준다 — 조용히 비활성만 하지 않는다
 function jobBlockedWhy(j){
@@ -2043,7 +2112,7 @@ function applyJob(id){
   if(why){ log("<b>"+j.name+"</b> 지원 불가 — "+why); return; }
   if(Math.random() < j.odds){
     S.job.id = id; S.job.months = 0; S.job.agency = false;
-    log("<b>"+j.name+"</b> 합격! 월급 "+won(j.pay)+"원 · 주 "+j.hours+"시간 "+
+    log("<b>"+j.name+"</b> 합격! 월급 "+ksk(j.pay)+" KSK · 주 "+j.hours+"시간 "+
         "(합격 확률 "+(j.odds*100).toFixed(0)+"%)");
   }else{
     log("<b>"+j.name+"</b> 불합격 — 조건은 맞았지만 확률에서 떨어졌습니다 "+
@@ -2062,9 +2131,10 @@ function quitJob(){
 
 function openAgency(){
   if(S.job.id !== "realtor" || S.job.agency) return;
-  if(!jobHasCert("realtor") || S.cash < AGENCY_FEE) return;
-  S.cash -= AGENCY_FEE; S.spent += AGENCY_FEE; S.job.agency = true;
-  log("<b>중개사무소 개업</b> -"+won(AGENCY_FEE)+"원 · 이제 월급 대신 중개 수입을 받습니다");
+  if(!jobHasCert("realtor")) return;
+  if(!pay(cost(AGENCY_FEE), "개업")) return;
+  S.job.agency = true;
+  log("<b>중개사무소 개업</b> -"+ksk(AGENCY_FEE)+" KSK · 이제 월급 대신 중개 수입을 받습니다");
   save(); renderJobs();
 }
 
@@ -2073,16 +2143,16 @@ function certBlockedWhy(c){
   if(c.edu > 0 && S.job.edu >= c.edu) return "이미 취득";
   if(S.job.study) return "다른 과정 진행 중";
   if(S.job.edu < c.needEdu) return "학력 " + c.needEdu + "단계 필요";
-  if(S.cash < c.fee) return "응시료 부족";
+  if(S.coin < cost(c.fee)*(1+FEE_RATE)) return "응시료 부족";
   return null;
 }
 
 function startStudy(id){
   const c = certFind(id);
   if(!c || certBlockedWhy(c)) return;
-  S.cash -= c.fee; S.spent += c.fee;
+  if(!pay(cost(c.fee), c.name)) return;
   S.job.study = { id: id, left: c.months };
-  log("<b>"+c.name+"</b> 등록 -"+won(c.fee)+"원 · "+c.months+"개월 뒤 판정 "+
+  log("<b>"+c.name+"</b> 등록 -"+ksk(c.fee)+" KSK · "+c.months+"개월 뒤 판정 "+
       "(합격 확률 "+(c.odds*100).toFixed(0)+"%)");
   save(); renderJobs();
 }
@@ -2092,7 +2162,7 @@ tickHooks.push(function(dt){
   // 월급 — F5(월 정산)가 붙으면 이 적립을 월말 일괄 지급으로 옮기고 이 줄을 지운다.
   // 그때 F5 는 이 훅을 대체하되, F8 구역의 코드는 F8 담당이 정리한다 (스킬 규칙).
   if(S.job.id){
-    S.cash += jobPayPerSec() * dt;
+    S.coin += jobPayPerSec() * dt;
     S.job.months += mo;
   }
   // 자격·학위 진행
@@ -2127,8 +2197,8 @@ function renderJobs(){
   $("jNow").textContent = j ? (agency ? "중개사무소 대표" : j.name) : "무직";
   $("jNow").className   = j ? "up" : "dimtxt";
   $("jPay").textContent = j
-    ? won(payNow())+"원/월 · "+won(jobPayPerSec())+"원/초"
-    : "0원";
+    ? ksk(payNow())+" KSK/월 · "+ksk(jobPayPerSec())+" KSK/초"
+    : "0 KSK";
   $("jPay").className   = j ? "up" : "dimtxt";
   $("jTenure").textContent = j
     ? S.job.months.toFixed(1)+"개월 · ×"+tenureMul().toFixed(3)
@@ -2141,7 +2211,7 @@ function renderJobs(){
   $("jQuit").disabled = !j;
   const ag = $("jAgency");
   ag.hidden = !(j && j.id === "realtor" && !S.job.agency);
-  ag.disabled = S.cash < AGENCY_FEE;
+  ag.disabled = S.coin < AGENCY_FEE;
 
   $("jStudy").textContent = S.job.study
     ? certFind(S.job.study.id).name+" · "+S.job.study.left.toFixed(1)+"개월 남음"
@@ -2155,7 +2225,7 @@ function renderJobs(){
       : '<button class="buy sm" data-jobapply="'+x.id+'"'+(why?" disabled":"")+'>지원</button>';
     return '<div class="jb'+(isNow?" now":"")+'"><div>'+
       '<div class="nm">'+x.name+'</div>'+
-      '<div class="meta">월급 '+won(x.pay)+'원 · 주 '+x.hours+'시간 · 합격률 '+
+      '<div class="meta">월급 '+ksk(x.pay)+' KSK · 주 '+x.hours+'시간 · 합격률 '+
         (x.odds*100).toFixed(0)+'%'+
         (x.needEdu ? ' · 학력 '+x.needEdu+'단계' : '')+
         (x.needCert ? ' · '+certFind(x.needCert).name+' 자격' : '')+'</div>'+
@@ -2169,10 +2239,10 @@ function renderJobs(){
     const btn = done
       ? '<button class="ghost sm" disabled>취득 완료</button>'
       : '<button class="buy sm" data-certgo="'+c.id+'"'+(why?" disabled":"")+'>등록 '+
-        won(c.fee)+'원</button>';
+        ksk(c.fee)+' KSK</button>';
     return '<div class="jb'+(done?" now":"")+'"><div>'+
       '<div class="nm">'+c.name+'</div>'+
-      '<div class="meta">응시료 '+won(c.fee)+'원 · '+c.months+'개월 · 합격률 '+
+      '<div class="meta">응시료 '+ksk(c.fee)+' KSK · '+c.months+'개월 · 합격률 '+
         (Math.min(0.98, c.odds*(typeof livingStudyMul==="function"?livingStudyMul():1))*100).toFixed(0)+'%'+
         (c.edu ? ' · 취득 시 학력 '+c.edu+'단계' : '')+
         (c.needEdu ? ' · 학력 '+c.needEdu+'단계 필요' : '')+'</div>'+
