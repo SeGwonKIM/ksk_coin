@@ -69,6 +69,24 @@ let err=null; try{ initTabs(); }catch(e){ err=e.name+': '+e.message; } err
 반드시 **스크린샷을 한 장 찍고**, 그 안에 `undefined` `NaN` `null` `[object`
 가 없는지 확인한다. 실제로 `undefinedkW` 와 `손익분기 시세 NaN원` 을 이렇게 잡았다.
 
+## 3.7 "켜져 있다" ≠ "돌고 있다" — 요금만 새는지 본다
+
+채굴을 켰는데 해시가 안 도는 상황이 실제로 있었다(라이브 사이트에서 해시 0회인데 현금 66원 감소).
+브라우저가 `requestAnimationFrame` 을 멈추면 채굴은 서는데 `setInterval` 기반 요금은 계속 나간다.
+
+`watchdog()` 이 3초 넘게 해시 진행이 없으면 채굴을 접는다. 이게 실제로 발동하는지 시험한다.
+
+```js
+M.on = false;                                  // 먼저 rAF 루프를 정말 죽인다
+// (1~2초 기다린 뒤 M.raf === 0 을 확인한다)
+M.on = true; M.progressAt = performance.now() - 5000;   // 진행이 멈춘 상태로 위조
+// 3초 기다린 뒤
+JSON.stringify({fired: !M.on, spent: 500000 - S.cash})  // fired true, spent 0 이어야 한다
+```
+
+**함정**: 루프를 죽이지 않고 `progressAt` 만 위조하면 살아 있는 루프가 매 프레임 덮어써서
+감시견이 발동하지 않는다. 그건 감시견 버그가 아니라 시험이 틀린 것이다.
+
 ## 4. 돌려 보고 상태를 읽는다
 
 ```js

@@ -435,6 +435,7 @@ function freshState(){
 // 채굴 런타임 (저장하지 않는 값)
 const M = {
   on:false, frame:0, nonce:0, batch:1500, hashes:0, hrAt:0, hr:0, hrSmooth:0, hrN:0, samples:[],
+  progressAt:0,   // 마지막으로 실제 해시를 돈 시각 — 감시견이 쓴다
   lastHex:"", lastBlockAt:0, raf:0
 };
 
@@ -614,6 +615,7 @@ function mineFrame(){
   }
   const dt = performance.now() - t0;
   M.hashes += tried;                       // 배치 전체가 아니라 실제 시도한 횟수
+  M.progressAt = performance.now();        // 감시견에게 살아 있음을 알린다
 
   // 배치 크기 자동 조정 — 한 번 일할 때 예산(PC 3ms · 모바일 2ms)을 넘지 않게
   const budget = hashMs();
@@ -705,7 +707,15 @@ function toggleMine(){
     M.hrAt = performance.now(); M.hashes = 0;
     if(S.mode === "pos"){
       log("검증 시작 — 좌석 "+seats()+"좌 · 지분 "+(stakeShare()*100).toFixed(3)+"%");
+    }else if(document.hidden){
+      // 숨겨진 탭에서는 requestAnimationFrame 이 돌지 않는다. 그대로 켜 두면
+      // 채굴은 안 되면서 전기·통신비만 빠져나간다. 켠 것으로 기억만 해 둔다.
+      M.on = false; pausedByHide = true;
+      $("bMine").textContent = "채굴 시작";
+      log("화면이 보이지 않아 채굴을 대기합니다 — 화면이 켜지면 자동으로 시작합니다");
+      return;
     }else{
+      M.progressAt = performance.now();
       if(!M.raf) M.raf = requestAnimationFrame(mineFrame);
       log("채굴 시작 — 폰 "+phoneCount()+"대 · 배수 "+totalMult()+" · 절약 모드");
     }
@@ -718,6 +728,18 @@ function toggleMine(){
 /* ─────────────────────────────────────────────────────────
    8. 시장 — 가격 결정과 매매
    ───────────────────────────────────────────────────────── */
+// 감시견 — "켜져 있다"와 "실제로 돌고 있다"는 다르다.
+// 브라우저가 rAF 를 멈추면(백그라운드 탭, 절전) 채굴은 서는데 요금은 계속 나간다.
+// 3초 넘게 해시 진행이 없으면 채굴을 접는다. 돈이 걸린 문제라 조용히 두지 않는다.
+function watchdog(){
+  if(!M.on || S.mode !== "pow") return;
+  if(performance.now() - M.progressAt < 3000) return;
+  M.on = false; pausedByHide = true;
+  $("bMine").textContent = "채굴 시작";
+  log("채굴이 진행되지 않아 멈췄습니다 (화면이 꺼졌거나 절전) — 돌아오면 자동 재개합니다");
+  save();
+}
+
 function tickWorld(dt){
   tickDemand(dt);
 
@@ -992,10 +1014,11 @@ $("bMerge").onclick = merge;
 $("bReset").onclick = reset;
 $("bAgain").onclick = reset;
 
+// (pausedByHide 는 위 감시견도 쓴다 — 선언은 아래 var 로 끌어올려져 있다)
 // 휴대폰에서 화면이 꺼지거나 앱을 전환하면 requestAnimationFrame 이 멈춘다.
 // 그대로 두면 채굴은 안 되는데 setInterval 만 살아 전기요금이 새어 나간다.
 // 그래서 숨겨지면 채굴을 접고, 돌아오면 자동으로 재개한다.
-let pausedByHide = false;
+var pausedByHide = false;   // var: 위쪽 watchdog/toggleMine 에서도 쓰므로 호이스팅이 필요하다
 document.addEventListener("visibilitychange", function(){
   if(document.hidden){
     if(M.on){
@@ -1135,7 +1158,7 @@ setInterval(function(){
   // 탭이 백그라운드였다면 dt 가 수백 초로 튄다 — 그만큼 요금을 물리면 즉시 파산한다
   const dt = Math.min((now-last)/1000, 2);
   last = now;
-  if(!S.over){ tickWorld(dt); tickMarket(dt); runHooks(tickHooks, dt); }
+  if(!S.over){ watchdog(); tickWorld(dt); tickMarket(dt); runHooks(tickHooks, dt); }
   render();
   renderRigs();
   renderAssets();
