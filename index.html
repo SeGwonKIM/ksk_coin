@@ -298,14 +298,20 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
       <h2>부동산 매물</h2>
       <div class="row"><span>부동산 시세 배수</span><b id="reMkt">—</b></div>
       <div class="row"><span>보유 / 초당 순임대수익</span><b id="reSum">—</b></div>
+      <div class="row"><span>가상 인물이 보유한 매물</span><b id="reHeld">—</b></div>
+      <div id="reHeldList" class="sub"></div>
       <div id="reFilters">
         <select id="reArea"><option>지역 전체</option><option>서울</option><option>경기</option><option>부산</option><option>제주</option></select>
         <select id="reUse"><option>용도 전체</option><option>주거</option><option>오피스</option><option>상가</option><option>토지</option></select>
         <label><input type="checkbox" id="reAfford"> 살 수 있는 것만</label>
       </div>
       <div id="reList"></div>
-      <div class="sub">취득세 4.6% · 중개수수료 0.5%(중개사 자격 시 면제) ·
-        <b>가격·임대료는 실제 시세가 아니라 게임 진행 속도에 맞춘 근사치입니다</b></div>
+      <div class="sub">취득세 4.6% · 중개수수료 0.5%(중개사 자격 시 면제) — 둘 다 <b>영구 소각</b>됩니다.
+        <br><b>가격은 실제 시장을 그대로 반영합니다</b> — 1 KSK = 100만원이므로
+        게임가는 언제나 <b>실제 참고 시세 × 100</b>입니다 (압축 없음).
+        그래서 채굴만으로는 아파트를 못 삽니다. 월급·임대·추천 보상이 함께 있어야
+        도달합니다 — 현실도 그렇습니다.
+        <b>실시간 시세 연동은 하지 않습니다</b>(고정 참고치).</div>
     </div>
 
     <div class="panel" data-tab="estate">
@@ -617,7 +623,7 @@ function freshState(){
     job: { id: null, months: 0, certs: [], edu: 0, study: null, agency: false },   // F8 직업
     hh: { items: {}, placedAt: null },   // F4 살림살이 — items: {품목id:{n:개수, age:경과 게임개월}}
     mine: { at: null, place: {}, penalty: 0 },   // F3 채굴 인프라 — at: 채굴장 건물id, place: {폰id:대수}
-    re: { owned: [], mkt: 1.0 },   // F2 부동산 — owned:[{id,price(매입가),yr}], mkt: 시세 배수
+    re: { owned: [], mkt: 1.0, held: {}, npcAt: 0 },   // F2 부동산 — held: {매물id: 가상인물id} — owned:[{id,price(매입가),yr}], mkt: 시세 배수
     demand: 1.0,          // 내부 수요 지수 (외부 데이터 없음)
     blockTimer: 0,        // 세계의 다음 블록까지 남은 시간
     poolPaid: 0,          // 풀에서 받은 누적 KSK
@@ -1388,11 +1394,14 @@ const BROKER  = 0.005;   // 중개수수료 0.5% — 중개사 자격이 있으�
 // 다만 **생활비 대비 절대 배율은 압축**했다 — 현실에서 아파트는 월 생활비의 500~1,000배라
 // 그대로 담으면 50년 게임에서 한 채 사고 끝난다. 환산은 1억원 = 500만 기본 KSK.
 // 실시간 시세 연동은 백서 §9 대로 하지 않는다. 이 값은 고정 참고치다.
-// 1억원 = 20 KSK. 1 KSK = 100만원이니 실제로는 1억원 = 100 KSK 여야 하지만,
-// 그러면 50년 총 채굴(400 KSK)로 관악우성(1,150 KSK) 한 채도 못 산다.
-// 그래서 **부동산만 5배 압축**했다. 부동산끼리의 실제 비율은 그대로 지킨다.
-// 이 값에서 타워팰리스(780 KSK)는 총 채굴의 195% — 임대 재투자와 직업이 필요한 장기 목표다.
-const EOK = 20;
+// 1 KSK = 100만원이므로 **1억원 = 100 KSK** — 압축 없는 정직한 환산이다.
+// 게임가는 언제나 `실제 참고 시세 × 100` 이고, 화면에 둘을 나란히 보여 준다.
+//
+// 그 결과 채굴만으로는 아파트를 살 수 없다 (50년 총 채굴 400 KSK vs 관악우성 1,150 KSK).
+// 현실도 그렇다 — 월급·임대·추천 보상이 함께 있어야 도달한다.
+// 채굴+알바+원룸임대 기준 도달 시점: 원룸 0.6년 · 오피스텔 1.7년 · 수원 5년 ·
+// 관악우성 8.8년 · 여의도 오피스 23년 · 타워팰리스 29.9년 — 50년 아크에 맞는 곡선이다.
+const EOK = 100;
 const ESTATES = [
   { id:"oneroom",   name:"원룸",              area:"부산 사하",   use:"주거",   py:8,
     real:0.8,  rentPct:0.0165, kw:0.3, cool:1.15 },
@@ -1424,6 +1433,82 @@ const estFind  = id => ESTATES.find(function(x){ return x.id === id; });
 const estPrice = e  => cost(e.price * S.re.mkt);
 const estOwned = id => S.re.owned.some(function(o){ return o.id === id; });
 
+// ── 가상 인물들의 부동산 시장 ──────────────────────────────
+// 나 혼자만 사고파는 시장은 죽은 시장이다. 가상 참여자들이 서로 거래하게 만들어
+// **매물이 실제로 사라지고 다시 나오게** 했다. 내가 노리던 집을 남이 먼저 사 갈 수 있다.
+//
+// 실제 사람 이름을 만들지 않는다 — 역할로만 표기한다(오해를 만들지 않기 위해).
+// 이들은 시뮬레이션된 값이고 실제 사용자가 아니다.
+const NPCS = [
+  { id:"gangnam",  name:"강남 투자자",   budget:4000, taste:"주거"   },
+  { id:"corp",     name:"법인 매입자",   budget:5000, taste:"오피스" },
+  { id:"retiree",  name:"은퇴 자산가",   budget:2000, taste:"상가"   },
+  { id:"foreign",  name:"외국인 투자자", budget:3500, taste:null     },
+  { id:"landlord", name:"임대사업자",   budget:2500, taste:null     },
+  { id:"redev",    name:"재개발 조합",   budget:6000, taste:"토지"   },
+  { id:"newlywed", name:"신혼부부",     budget:700,  taste:"주거"   },
+  { id:"youth",    name:"청년 실수요자", budget:300,  taste:"주거"   }
+];
+const npcFind = id => NPCS.find(function(n){ return n.id === id; });
+// 이 매물을 들고 있는 가상 인물 (없으면 null)
+const heldBy  = id => S.re.held[id] ? npcFind(S.re.held[id]) : null;
+
+const NPC_EVERY    = 120;   // 가상 인물이 움직이는 간격 (게임시간 = 초)
+const NPC_MAX_HOLD = 0.5;   // 가상 인물이 동시에 들고 있을 수 있는 매물 비율 상한
+
+// 받침 여부로 조사를 고른다 — '임대사업자 이(가)' 대신 '임대사업자가'
+function josa(word, withF, withoutF){
+  const c = word.charCodeAt(word.length-1) - 0xAC00;
+  const hasFinal = c >= 0 && c <= 11171 && (c % 28) !== 0;
+  return word + (hasFinal ? withF : withoutF);
+}
+
+// 이 가상 인물이 이미 부동산에 쓴 총액 (예산 검사에 쓴다)
+function npcSpent(npcId){
+  return Object.keys(S.re.held)
+    .filter(function(k){ return S.re.held[k] === npcId; })
+    .reduce(function(a,k){ const e = estFind(k); return a + (e ? e.price : 0); }, 0);
+}
+
+function npcTick(dt){
+  S.re.npcAt = (S.re.npcAt || 0) + dt;
+  if(S.re.npcAt < NPC_EVERY) return;
+  S.re.npcAt = 0;
+
+  const n = NPCS[Math.floor(Math.random()*NPCS.length)];
+  const mine  = ESTATES.filter(function(e){ return estOwned(e.id); }).map(function(e){ return e.id; });
+  const hisIds = Object.keys(S.re.held).filter(function(k){ return S.re.held[k] === n.id; });
+
+  // 시장에 매물이 너무 적게 남으면 매수를 멈춘다 — 시장이 잠겨 게임이 막히지 않게
+  const heldCount = Object.keys(S.re.held).length;
+  const canBuyMore = heldCount < Math.floor(ESTATES.length * NPC_MAX_HOLD);
+  const left = n.budget - npcSpent(n.id);              // 남은 예산 (누적 차감)
+
+  // 60% 매수 시도 / 40% 매도
+  if(canBuyMore && Math.random() < 0.6){
+    const can = ESTATES.filter(function(e){
+      if(mine.indexOf(e.id) >= 0) return false;        // 내 것은 못 산다
+      if(S.re.held[e.id]) return false;                 // 이미 남이 들고 있다
+      if(n.taste && e.use !== n.taste) return false;    // 취향
+      return e.price <= left;                           // 남은 예산 안에서만
+    });
+    if(!can.length) return;
+    const e = can[Math.floor(Math.random()*can.length)];
+    S.re.held[e.id] = n.id;
+    S.re.mkt = clamp(S.re.mkt * 1.005, 0.5, 4);         // 매수는 시세를 밀어 올린다
+    log("<b>"+n.name+"</b>"+(josa(n.name,"이","가").slice(n.name.length))+" "+
+        josa(e.name,"을","를")+" 매입했습니다 — 매물에서 빠졌습니다");
+  }else{
+    if(!hisIds.length) return;
+    const id = hisIds[Math.floor(Math.random()*hisIds.length)];
+    delete S.re.held[id];
+    S.re.mkt = clamp(S.re.mkt * 0.996, 0.5, 4);         // 매도는 시세를 누른다
+    log("<b>"+n.name+"</b>"+(josa(n.name,"이","가").slice(n.name.length))+" "+
+        josa(estFind(id).name,"을","를")+" 매도했습니다 — 매물에 다시 나왔습니다");
+  }
+  save();
+}
+
 // 계약 §6 — netWorth() 가 이 이름 그대로 읽어 간다. 이름을 바꾸면 대시보드가 놓친다.
 function estateValue(){
   return S.re.owned.reduce(function(a,o){
@@ -1446,6 +1531,12 @@ const brokerFree = () => typeof jobHasCert === "function" && jobHasCert("realtor
 function buyEstate(id){
   const e = estFind(id);
   if(!e || estOwned(id)) return;
+  // 가상 인물이 들고 있으면 못 산다. 버튼만 숨기면 함수를 직접 부르는 경로가 남는다.
+  const holder = heldBy(id);
+  if(holder){
+    log(josa(e.name,"은","는")+" 지금 <b>"+holder.name+"</b> 보유 중이라 매입할 수 없습니다");
+    return;
+  }
   const p = estPrice(e), tax = p*ACQ_TAX, brk = brokerFree() ? 0 : p*BROKER;
   const total = p + tax + brk;
   if(S.coin < total) return;
@@ -1465,6 +1556,7 @@ function sellEstate(id){
   const got = p - brk, gain = got - o.price;
   S.coin += got; S.re.owned.splice(i, 1);
   if(brk > 0){ S.burned += brk; S.fees += brk; }
+  // 내가 판 집은 시장으로 돌아간다 — 가상 인물이 사 갈 수도 있다 (npcTick 이 처리)
   log("<b>"+e.name+"</b> 매도 "+ksk(got)+" KSK · 손익 "+(gain>=0?"+":"")+ksk(gain)+" KSK");
   save(); renderEstates();
 }
@@ -1476,6 +1568,7 @@ tickHooks.push(function(dt){
   S.re.mkt = clamp(S.re.mkt, 0.5, 4);
   // 임대료 적립 — F5 가 붙으면 이 줄을 월말 정산으로 옮긴다 (이중 청구 주의)
   if(S.re.owned.length) S.coin += estNetRentPerSec() * dt;
+  npcTick(dt);   // 가상 인물들이 서로 거래한다
 });
 
 let reArea = "지역 전체", reUse = "용도 전체", reAfford = false;
@@ -1513,9 +1606,18 @@ function renderEstates(){
   $("reMkt").className    = S.re.mkt >= 1 ? "up" : "down";
   $("reSum").textContent  = S.re.owned.length+"채 · "+ksk(estateValue())+" KSK · +"+
                             ksk(estNetRentPerSec())+" KSK/초";
+  const heldIds = Object.keys(S.re.held);
+  $("reHeld").textContent = heldIds.length+"채 / 전체 "+ESTATES.length+"채";
+  $("reHeld").className   = heldIds.length ? "down" : "dimtxt";
+  $("reHeldList").innerHTML = heldIds.length
+    ? heldIds.map(function(id){
+        return estFind(id).name+" <span class=\"dimtxt\">— "+heldBy(id).name+" 보유</span>";
+      }).join(" · ")
+    : "지금은 모든 매물이 시장에 나와 있습니다";
 
   const list = ESTATES.filter(function(e){
     if(estOwned(e.id)) return false;
+    if(S.re.held[e.id]) return false;        // 가상 인물이 들고 있으면 살 수 없다
     if(reArea !== "지역 전체" && e.area.indexOf(reArea) !== 0) return false;
     if(reUse  !== "용도 전체" && e.use !== reUse) return false;
     if(reAfford){
