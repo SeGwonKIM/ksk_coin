@@ -136,7 +136,8 @@ button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
       <div class="row"><span>시도한 논스</span><b id="mNonce">0</b></div>
       <div class="row"><span>세계 블록 / 현재 보상</span><b id="mBlocks">0 / 250만 KSK</b></div>
       <div class="row"><span>다음 반감기까지</span><b id="mHalve">에라 1/25 · 1,000 블록</b></div>
-      <div class="row"><span>풀 누적 수령 / 직접 발견</span><b id="mPool">0 KSK / 0회</b></div>
+      <div class="row"><span>내 누적 수령 / 직접 발견</span><b id="mPool">0 KSK / 0회</b></div>
+      <div class="row"><span>세계 발행량 / 내 보유 비중</span><b id="mMine">—</b></div>
       <hr>
       <div class="row"><span>초당 비용 (전기+통신)</span><b id="mCost" class="down">—</b></div>
       <div class="row"><span>초당 기대수익</span><b id="mRev" class="up">—</b></div>
@@ -319,7 +320,7 @@ const PLAN_COST    = 5000;     // 폰 1대당 월 통신비 (원) — 폰 채굴
 const MONTH_HOURS  = 730;      // 게임 한 달 (8760 ÷ 12)
 const START_SHARE  = 0.04;     // 폰 한 대로 출발하는 채굴 풀 지분 (4%)
 const START_CASH   = 500000;
-const SAVE_KEY     = "ksk_coin_v3";
+const SAVE_KEY     = "ksk_coin_v4";
 
 // 기기 자원을 최소로 쓰기 위한 예산.
 // 1단계(초기 분배 PoW)는 DUTY 프레임 중 한 번만, 그때도 HASH_MS 만큼만 해시한다.
@@ -332,6 +333,11 @@ const DUTY    = 3;
 const MIN_STAKE  = 32000;   // 검증자 1좌 최소 스테이크 (이더리움 32 ETH 를 흉내)
 const ATTEST_SEC = 12;      // 서명 주기 — 이 사이 기기는 아무 일도 하지 않는다
 const NET_STAKE0 = 900000;  // 네트워크 초기 총 스테이크
+// 남들이 세계 전체 발행량의 이 비율만큼 예치해 둔다.
+// 내 지분은 share = m/(m+r) 이고 (m = 내 보유 비중), 고정점은 m = 1-r 이다.
+// r = 0.85 → 내 지분이 15% 로 수렴한다. 이 값을 '내가 캔 양' 기준으로 잡으면
+// 지분↑→코인↑→스테이크↑→지분↑ 폭주 고리가 생겨 4% 가 80% 까지 치솟는다.
+const STAKE_RATIO = 0.85;
 const LEAK_RATE  = 0.00002; // 미가동 누출 — 검증을 끄면 스테이크가 조금씩 줄어든다
 const FEE_RATE   = 0.0001;  // 전송·거래 수수료 0.01%
 
@@ -353,7 +359,9 @@ let S = null;
 
 function freshState(){
   return {
-    coin: 0, cash: START_CASH, mined: 0, blocks: 0,
+    coin: 0, cash: START_CASH, blocks: 0,
+    issued: 0,            // 세계 전체 발행량 (내 몫이 아니라 네트워크 전체)
+    mined: 0,             // 내가 받은 양 (풀 지급 + 검증 보상 + 발견 보너스)
     counts: { old:1, used:0, budget:0, flag:0, tablet:0 },  // 쓰던 구형 폰 1대로 시작
     netHash: null,        // 네트워크 해시레이트 (실측 뒤 설정)
     baseHash: null,       // 내 기준 해시레이트 — 경제 계산을 측정 잡음에서 떼어 놓는다
@@ -388,7 +396,7 @@ const clamp = (v,a,b) => v < a ? a : v > b ? b : v;
 
 const elecRate  = () => ELEC_BASE;                              // 건물 냉각계수는 F3.3 에서 곱한다
 const sentiment = () => S.demand;                               // 내부 수요 엔진
-const scarcity  = () => CAP / Math.max(CAP - S.mined, 1);       // 캘수록 커진다
+const scarcity  = () => CAP / Math.max(CAP - S.issued, 1);      // 세계가 캘수록 커진다
 const fairPrice = () => BASE_PRICE * scarcity() * sentiment();
 const costFloor = () => elecRate() * KWH_PER_MKSK / 1e6;        // 이 아래로는 아무도 안 판다
 const gameYears = () => S.blocks * TARGET_SEC / HOURS_PER_YR;   // 세계의 경과 연수
@@ -420,9 +428,7 @@ function myDifficulty(){
 }
 const netDifficulty = () => S.netHash ? TARGET_SEC * S.netHash : 0;
 // 지분증명에서 내 몫은 해시파워가 아니라 예치한 스테이크의 비중이다
-// 남들이 유통량의 약 25% 를 예치해 둔다고 본다. 고정값으로 두면 초기 발행량이 큰
-// 구간에서 전량 예치만으로 지분이 80% 를 넘어 버린다.
-const netStake   = () => Math.max(NET_STAKE0, S.mined * 0.25);
+const netStake   = () => Math.max(NET_STAKE0, S.issued * STAKE_RATIO);
 const stakeShare = () => S.staked > 0 ? S.staked / (S.staked + netStake()) : 0;
 const seats      = () => Math.floor(S.staked / MIN_STAKE);
 const myShare    = () => S.mode === "pos" ? stakeShare() : share();
@@ -456,7 +462,7 @@ function tickPoS(dt){
   }
 
   if(seats() < 1) return;                    // 최소 스테이크 미달이면 보상 없음
-  const gain = Math.min(stakeShare() * reward() / TARGET_SEC * dt, CAP - S.mined);
+  const gain = Math.min(stakeShare() * reward() / TARGET_SEC * dt, CAP - S.issued);
   if(gain > 0){ S.coin += gain; S.mined += gain; S.poolPaid += gain; }
 }
 
@@ -597,7 +603,7 @@ function mineFrame(){
 // 드물게 터지는 보너스다 — 그래서 진짜 계산이 무의미해지지 않는다.
 function onSoloBlock(){
   S.solo++;
-  const bonus = Math.min(reward() * 0.02, CAP - S.mined);
+  const bonus = Math.min(reward() * 0.02, CAP - S.issued);
   if(bonus > 0){ S.coin += bonus; S.mined += bonus; }
   log("<b>직접 블록 발견!</b> 논스 "+M.nonce.toLocaleString()+" · 발견 보너스 +"+
       kskFull(bonus)+" KSK · "+M.lastHex.slice(0,16)+"…");
@@ -619,8 +625,13 @@ function worldBlock(){
         kskFull(reward())+" KSK 로 줄었습니다");
 
   if(S.blocks >= MAX_BLOCKS){
-    const rest = CAP - S.mined;
-    if(rest > 0){ S.coin += rest; S.mined = CAP; }
+    // 등비수열이 남기는 잔여분(149.01 KSK)을 정산해 정확히 50억으로 맞춘다
+    const rest = CAP - S.issued;
+    if(rest > 0){
+      S.issued = CAP;
+      const mine = rest * myShare();
+      S.coin += mine; S.mined += mine;
+    }
     log("<b>발행 종료</b> — 50년이 지나 50억 KSK 가 모두 발행됐습니다");
     endGame(true);
   }
@@ -630,7 +641,7 @@ function worldBlock(){
 // 폰 한 대의 지분은 4% 라 블록을 직접 기다리면 7분씩 걸린다. 풀이 그걸 잘게 쪼개 준다.
 function tickPool(dt){
   if(!M.on || !S.baseHash || S.mode !== "pow") return;
-  const gain = Math.min(share() * reward() / TARGET_SEC * dt, CAP - S.mined);
+  const gain = Math.min(share() * reward() / TARGET_SEC * dt, CAP - S.issued);
   if(gain <= 0) return;
   S.coin += gain; S.mined += gain; S.poolPaid += gain;
 }
@@ -657,6 +668,11 @@ function toggleMine(){
    ───────────────────────────────────────────────────────── */
 function tickWorld(dt){
   tickDemand(dt);
+
+  // 세계 발행량은 연속으로 흐른다. 블록 단위로만 올리면 풀이 연속 지급하는 동안
+  // '내 수령량 > 세계 발행량' 이라는 역전이 생긴다.
+  S.issued = Math.min(CAP, S.issued + reward()/TARGET_SEC * dt);
+
   S.blockTimer += dt;
   let guard = 0;
   while(S.blockTimer >= TARGET_SEC && !S.over && guard++ < 20){
@@ -780,7 +796,7 @@ function render(){
   $("sPrice").textContent  = pw(S.price);
   $("sHash").textContent   = S.mode === "pos" ? "—" : hs(liveHash());
   $("sShare").textContent  = (myShare()*100).toFixed(2)+"%";
-  $("sSupply").textContent = (S.mined/CAP*100).toFixed(3)+"%";
+  $("sSupply").textContent = (S.issued/CAP*100).toFixed(3)+"%";
   $("sYear").textContent   = gameYears().toFixed(1)+"년";
 
   $("rElec").textContent = elecRate().toFixed(0)+"원/kWh";
@@ -827,6 +843,8 @@ function render(){
   }
 
   $("mPool").textContent = kskFull(S.poolPaid)+" KSK / "+S.solo+"회";
+  $("mMine").textContent = ksk(S.issued)+" KSK / "+
+    (S.issued > 0 ? ((S.coin+S.staked)/S.issued*100).toFixed(2) : "0.00")+"%";
   // 진행바는 세계의 다음 블록까지
   $("mBar").style.width = (S.blockTimer/TARGET_SEC*100).toFixed(1)+"%";
   $("hashline").textContent = !M.on ? "대기 중…"
@@ -875,7 +893,8 @@ function endGame(complete){
     ? "21,000 KSK 가 모두 발행됐습니다. 더 캘 코인이 없습니다."
     : "현금이 바닥나고 팔 코인도 남지 않았습니다. 전기요금이 수익을 넘어섰습니다.";
   $("eStats").innerHTML =
-    '<div class="row"><span>총 채굴량</span><b>'+ksk(S.mined)+' KSK</b></div>'+
+    '<div class="row"><span>내 총 수령량</span><b>'+ksk(S.mined)+' KSK</b></div>'+
+    '<div class="row"><span>세계 총 발행량</span><b>'+ksk(S.issued)+' KSK</b></div>'+
     '<div class="row"><span>찾은 블록</span><b>'+S.blocks+'</b></div>'+
     '<div class="row"><span>최종 순자산</span><b>'+won(net)+'원</b></div>'+
     '<div class="row"><span>최고 시세</span><b>'+won(S.peakPrice)+'원</b></div>'+
