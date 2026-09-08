@@ -129,7 +129,9 @@ button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
   <div class="grid" style="margin-top:12px">
 
     <div class="panel">
-      <h2>채굴</h2>
+      <h2 id="mTitle">1단계 — 초기 분배 (가벼운 작업증명)</h2>
+      <div class="row"><span>합의 방식</span><b id="mMode">PoW · 절약 모드</b></div>
+      <div class="row"><span>기기 부하</span><b id="mLoad" class="up">—</b></div>
       <div class="row"><span>네트워크 난이도</span><b id="mDiff">—</b></div>
       <div class="row"><span>시도한 논스</span><b id="mNonce">0</b></div>
       <div class="row"><span>세계 블록 / 현재 보상</span><b id="mBlocks">0 / 250만 KSK</b></div>
@@ -143,8 +145,10 @@ button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
       <div class="bar"><div id="mBar"></div></div>
       <div class="btns">
         <button id="bMine">채굴 시작</button>
+        <button id="bMerge" class="ghost" disabled>더 머지 (PoS 전환)</button>
         <button id="bReset" class="ghost sm">초기화</button>
       </div>
+      <div class="sub" id="mHint">—</div>
     </div>
 
     <div class="panel">
@@ -155,6 +159,7 @@ button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
       <div class="row"><span>기준가 × 희소성 × 심리</span><b id="kFair">—</b></div>
       <div class="row"><span>원가하한 (전기요금 기준)</span><b id="kFloor">—</b></div>
       <div class="row"><span>보유 KSK 평가액</span><b id="kValue">—</b></div>
+      <div class="row"><span>전송 수수료 (누적)</span><b id="kFee">0.01% · 0원</b></div>
       <div class="btns">
         <button class="sell sm" data-sell="0.1">10% 매도</button>
         <button class="sell sm" data-sell="1">전량 매도</button>
@@ -163,8 +168,23 @@ button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
       <div class="sub">팔면 시세가 눌리고, 사면 밀려 올라갑니다 (슬리피지)</div>
     </div>
 
+    <div class="panel" id="stakePanel" hidden>
+      <h2>스테이킹 — 보안의 담보는 전기가 아니라 돈이다</h2>
+      <div class="row"><span>예치한 스테이크</span><b id="pStake">0 KSK</b></div>
+      <div class="row"><span>검증자 좌석</span><b id="pSeats">0좌</b></div>
+      <div class="row"><span>내 지분 / 네트워크 총 스테이크</span><b id="pShare">—</b></div>
+      <div class="row"><span>서명 횟수 (12초에 1회)</span><b id="pAttest">0</b></div>
+      <div class="row"><span>미가동 누출로 잃은 양</span><b id="pSlash" class="down">0 KSK</b></div>
+      <div class="btns">
+        <button class="buy sm" data-stake="1">1좌 예치 (32,000)</button>
+        <button class="buy sm" data-stake="all">전량 예치</button>
+        <button class="sell sm" data-unstake="1">전량 인출</button>
+      </div>
+      <div class="sub">검증을 멈추면 스테이크가 조금씩 깎입니다(미가동 누출). 부정하면 몰수됩니다.</div>
+    </div>
+
     <div class="panel">
-      <h2>채굴 장비</h2>
+      <h2 id="rigTitle">채굴 장비 — 휴대폰</h2>
       <div id="rigs"></div>
       <div class="sub">손익분기 시세가 현재 시세보다 높으면 그 장비는 지금 적자입니다</div>
     </div>
@@ -301,9 +321,19 @@ const START_SHARE  = 0.04;     // 폰 한 대로 출발하는 채굴 풀 지분 
 const START_CASH   = 500000;
 const SAVE_KEY     = "ksk_coin_v3";
 
-// 모바일은 발열·배터리를 고려해 프레임 예산을 줄인다
-const COARSE   = window.matchMedia && matchMedia("(pointer:coarse)").matches;
-const FRAME_MS = COARSE ? 8 : 12;
+// 기기 자원을 최소로 쓰기 위한 예산.
+// 1단계(초기 분배 PoW)는 DUTY 프레임 중 한 번만, 그때도 HASH_MS 만큼만 해시한다.
+//   → CPU 점유 ≈ HASH_MS / (16.7ms × DUTY) ≈ 6%.  옛 방식은 100% 를 썼다.
+const COARSE  = window.matchMedia && matchMedia("(pointer:coarse)").matches;
+const HASH_MS = COARSE ? 2 : 3;
+const DUTY    = 3;
+
+// 2단계 — 지분증명(PoS). 보안은 해시파워가 아니라 '스테이크 몰수'에서 나온다.
+const MIN_STAKE  = 32000;   // 검증자 1좌 최소 스테이크 (이더리움 32 ETH 를 흉내)
+const ATTEST_SEC = 12;      // 서명 주기 — 이 사이 기기는 아무 일도 하지 않는다
+const NET_STAKE0 = 900000;  // 네트워크 초기 총 스테이크
+const LEAK_RATE  = 0.00002; // 미가동 누출 — 검증을 끄면 스테이크가 조금씩 줄어든다
+const FEE_RATE   = 0.0001;  // 전송·거래 수수료 0.01%
 
 // 채굴 장비는 휴대폰이다. mult 는 세계 안에서의 상대 채굴력, w 는 소비전력(와트).
 // 폰은 전기를 거의 안 쓰므로 실제 비용은 전기요금이 아니라 대당 통신비다.
@@ -330,6 +360,13 @@ function freshState(){
     slip: 0,              // 슬리피지 누적 (매매로 눌리거나 밀린 정도)
     price: BASE_PRICE, prevPrice: BASE_PRICE,
     hist: [], log: [],
+    mode: "pow",          // "pow" 초기 분배 → "pos" 지분증명 (더 머지)
+    staked: 0,            // 예치한 스테이크
+    // 네트워크 총 스테이크는 유통량의 25% 로 따라간다 (아래 netStake() 참고)
+    attests: 0,           // 서명 횟수
+    attestTimer: 0,
+    slashed: 0,           // 미가동 누출로 잃은 양
+    fees: 0,              // 누적 수수료 (0.01%)
     demand: 1.0,          // 내부 수요 지수 (외부 데이터 없음)
     blockTimer: 0,        // 세계의 다음 블록까지 남은 시간
     poolPaid: 0,          // 풀에서 받은 누적 KSK
@@ -340,7 +377,7 @@ function freshState(){
 
 // 채굴 런타임 (저장하지 않는 값)
 const M = {
-  on:false, nonce:0, batch:1500, hashes:0, hrAt:0, hr:0, hrSmooth:0, hrN:0, samples:[],
+  on:false, frame:0, nonce:0, batch:1500, hashes:0, hrAt:0, hr:0, hrSmooth:0, hrN:0, samples:[],
   lastHex:"", lastBlockAt:0, raf:0
 };
 
@@ -382,7 +419,71 @@ function myDifficulty(){
   return Math.max(1, (TARGET_SEC * S.netHash) / Math.max(totalMult(), 1));
 }
 const netDifficulty = () => S.netHash ? TARGET_SEC * S.netHash : 0;
-const revPerSec = () => share() * reward() * S.price / TARGET_SEC;
+// 지분증명에서 내 몫은 해시파워가 아니라 예치한 스테이크의 비중이다
+// 남들이 유통량의 약 25% 를 예치해 둔다고 본다. 고정값으로 두면 초기 발행량이 큰
+// 구간에서 전량 예치만으로 지분이 80% 를 넘어 버린다.
+const netStake   = () => Math.max(NET_STAKE0, S.mined * 0.25);
+const stakeShare = () => S.staked > 0 ? S.staked / (S.staked + netStake()) : 0;
+const seats      = () => Math.floor(S.staked / MIN_STAKE);
+const myShare    = () => S.mode === "pos" ? stakeShare() : share();
+const revPerSec  = () => myShare() * reward() * S.price / TARGET_SEC;
+
+// 검증자 정산 — 기기가 하는 일은 12초에 서명(해시) 한 번뿐이다.
+// 자원을 거의 쓰지 않는데도 보안이 성립하는 이유는, 부정하면 예치한 스테이크를
+// 잃기 때문이다(슬래싱). 즉 보안의 담보가 전기가 아니라 돈이다.
+function tickPoS(dt){
+  if(S.mode !== "pos") return;
+
+  if(!M.on){
+    // 미가동 누출 — 검증을 멈추면 스테이크가 조금씩 깎인다. 이게 가동 유인이다.
+    if(S.staked > 0){
+      const leak = S.staked * LEAK_RATE * dt;
+      S.staked -= leak; S.slashed += leak;
+    }
+    return;
+  }
+
+  S.attestTimer += dt;
+  while(S.attestTimer >= ATTEST_SEC){
+    S.attestTimer -= ATTEST_SEC;
+    // 서명 = 해시 한 번. PoW 가 초당 수십만 번 하던 일을 12초에 한 번으로 줄인 것.
+    M.lastHex = sha256("attest|"+S.blocks+"|"+S.attests+"|"+S.staked, 1);
+    M.hashes += 1;
+    S.attests++;
+    if(S.attests % 25 === 0)
+      log("검증 서명 "+S.attests.toLocaleString()+"회 · 좌석 "+seats()+
+          "좌 · 지분 "+(stakeShare()*100).toFixed(3)+"%");
+  }
+
+  if(seats() < 1) return;                    // 최소 스테이크 미달이면 보상 없음
+  const gain = Math.min(stakeShare() * reward() / TARGET_SEC * dt, CAP - S.mined);
+  if(gain > 0){ S.coin += gain; S.mined += gain; S.poolPaid += gain; }
+}
+
+function stake(amount){
+  const amt = Math.min(amount, S.coin);
+  if(amt <= 0) return;
+  S.coin -= amt; S.staked += amt;
+  log("스테이크 예치 +"+kskFull(amt)+" KSK · 총 "+kskFull(S.staked)+
+      " ("+seats()+"좌)");
+  save();
+}
+function unstake(){
+  if(S.staked <= 0) return;
+  log("스테이크 인출 "+kskFull(S.staked)+" KSK — 검증자에서 물러납니다");
+  S.coin += S.staked; S.staked = 0;
+  save();
+}
+function merge(){
+  if(S.mode === "pos" || S.coin < MIN_STAKE) return;
+  S.mode = "pow2pos";                        // 표시용 중간 상태 없이 바로 전환
+  S.mode = "pos";
+  M.on = false; M.raf = 0;
+  stake(MIN_STAKE * Math.floor(S.coin / MIN_STAKE));
+  log("<b>더 머지</b> — 작업증명을 끝내고 지분증명으로 전환했습니다. "+
+      "이제 기기는 12초에 서명 한 번만 합니다");
+  renderRigs(); save();
+}
 
 /* ─────────────────────────────────────────────────────────
    5. 포맷
@@ -430,7 +531,13 @@ function tickDemand(dt){
    (9/1 강의: 싱글 스레드를 막으면 화면이 멈춘다)
    ───────────────────────────────────────────────────────── */
 function mineFrame(){
-  if(!M.on){ M.raf = 0; return; }
+  if(!M.on || S.mode !== "pow"){ M.raf = 0; return; }
+
+  // 절약: DUTY 프레임 중 한 번만 일한다. 나머지 프레임은 그냥 넘긴다.
+  if((M.frame = (M.frame + 1) % DUTY) !== 0){
+    M.raf = requestAnimationFrame(mineFrame);
+    return;
+  }
 
   // 네트워크 규모(S.netHash)는 내 해시레이트를 실측한 뒤에 정해진다.
   // 그 전에는 난이도를 계산할 수 없으므로 블록을 인정하지 않고 측정만 한다.
@@ -451,9 +558,9 @@ function mineFrame(){
   const dt = performance.now() - t0;
   M.hashes += tried;                       // 배치 전체가 아니라 실제 시도한 횟수
 
-  // 배치 크기 자동 조정 — 기기에 맞춰 프레임 예산 안으로 (PC 12ms / 모바일 8ms)
-  if(dt > FRAME_MS + 3 && M.batch > 100) M.batch = Math.floor(M.batch * 0.75);
-  else if(dt < FRAME_MS - 3) M.batch = Math.min(60000, Math.floor(M.batch * 1.25));
+  // 배치 크기 자동 조정 — 한 번 일할 때 HASH_MS 를 넘지 않게
+  if(dt > HASH_MS + 1 && M.batch > 50) M.batch = Math.floor(M.batch * 0.7);
+  else if(dt < HASH_MS - 1) M.batch = Math.min(60000, Math.floor(M.batch * 1.2));
 
   // 해시레이트 측정
   const now = performance.now();
@@ -505,7 +612,7 @@ function worldBlock(){
 
   // 채굴이 남으면 채굴자가 몰리고, 적자면 빠져나간다 → 난이도가 따라 움직인다
   const p = clamp((S.price - costFloor()) / Math.max(S.price, 1e-9), -0.5, 0.5);
-  S.netHash *= (1 + 0.012*p + 0.001);
+  S.netHash  *= (1 + 0.012*p + 0.001);
 
   if(S.blocks % HALVING === 0 && S.blocks < MAX_BLOCKS)
     log("<b>반감기 "+era()+"회차</b> ("+gameYears().toFixed(0)+"년차) — 블록 보상이 "+
@@ -522,7 +629,7 @@ function worldBlock(){
 // 채굴 풀 정산 — 내 해시 비중만큼 연속으로 받는다.
 // 폰 한 대의 지분은 4% 라 블록을 직접 기다리면 7분씩 걸린다. 풀이 그걸 잘게 쪼개 준다.
 function tickPool(dt){
-  if(!M.on || !S.baseHash) return;
+  if(!M.on || !S.baseHash || S.mode !== "pow") return;
   const gain = Math.min(share() * reward() / TARGET_SEC * dt, CAP - S.mined);
   if(gain <= 0) return;
   S.coin += gain; S.mined += gain; S.poolPaid += gain;
@@ -533,11 +640,15 @@ function toggleMine(){
   $("bMine").textContent = M.on ? "채굴 정지" : "채굴 시작";
   if(M.on){
     M.hrAt = performance.now(); M.hashes = 0;
-    if(!M.raf) M.raf = requestAnimationFrame(mineFrame);
-    log("채굴 시작 — 총 배수 "+totalMult()+"배 · "+totalKw()+"kW");
+    if(S.mode === "pos"){
+      log("검증 시작 — 좌석 "+seats()+"좌 · 지분 "+(stakeShare()*100).toFixed(3)+"%");
+    }else{
+      if(!M.raf) M.raf = requestAnimationFrame(mineFrame);
+      log("채굴 시작 — 폰 "+phoneCount()+"대 · 배수 "+totalMult()+" · 절약 모드");
+    }
   }else{
     M.hr = 0; M.hrSmooth = M.hrSmooth*0.5;
-    log("채굴 정지");
+    log(S.mode === "pos" ? "검증 정지 — 미가동 누출이 시작됩니다" : "채굴 정지");
   }
 }
 
@@ -553,6 +664,7 @@ function tickWorld(dt){
     worldBlock();
   }
   tickPool(dt);
+  tickPoS(dt);
 }
 
 function tickMarket(dt){
@@ -560,7 +672,7 @@ function tickMarket(dt){
   const base  = Math.max(fairPrice(), costFloor());
   const noise = 1 + (Math.random()-0.5) * 0.012;
   S.prevPrice = S.price;
-  S.price = Math.max(1, base * (1 + S.slip) * noise);
+  S.price = Math.max(1e-6, base * (1 + S.slip) * noise);   // 하한은 0에 가깝게 (단위가 0.01원)
   if(S.price > S.peakPrice) S.peakPrice = S.price;
 
   S.hist.push(S.price);
@@ -580,19 +692,21 @@ function tickMarket(dt){
 function sell(frac){
   const amt = S.coin * frac;
   if(amt <= 0) return;
-  const got = amt * S.price;
-  S.coin -= amt; S.cash += got;
+  const gross = amt * S.price;
+  const fee   = gross * FEE_RATE;                     // 전송 수수료 0.01%
+  S.coin -= amt; S.cash += gross - fee; S.fees += fee;
   S.slip -= frac >= 1 ? 0.08 : 0.03;                  // 팔면 눌린다
-  log("매도 "+ksk(amt)+" KSK → +"+won(got)+"원");
+  log("매도 "+ksk(amt)+" KSK → +"+won(gross-fee)+"원 (수수료 "+won(fee)+"원)");
   save();
 }
 function buy(frac){
   const spend = S.cash * frac;
   if(spend <= 0) return;
-  const amt = spend / S.price;
-  S.cash -= spend; S.coin += amt;
+  const fee = spend * FEE_RATE;                       // 전송 수수료 0.01%
+  const amt = (spend - fee) / S.price;
+  S.cash -= spend; S.coin += amt; S.fees += fee;
   S.slip += 0.03;                                     // 사면 밀려 오른다
-  log("매수 "+ksk(amt)+" KSK ← -"+won(spend)+"원");
+  log("매수 "+ksk(amt)+" KSK ← -"+won(spend)+"원 (수수료 "+won(fee)+"원)");
   save();
 }
 
@@ -664,8 +778,8 @@ function render(){
   $("sCoin").textContent   = ksk(S.coin);
   $("sCash").textContent   = won(S.cash);
   $("sPrice").textContent  = pw(S.price);
-  $("sHash").textContent   = hs(liveHash());
-  $("sShare").textContent  = (share()*100).toFixed(1)+"%";
+  $("sHash").textContent   = S.mode === "pos" ? "—" : hs(liveHash());
+  $("sShare").textContent  = (myShare()*100).toFixed(2)+"%";
   $("sSupply").textContent = (S.mined/CAP*100).toFixed(3)+"%";
   $("sYear").textContent   = gameYears().toFixed(1)+"년";
 
@@ -687,6 +801,31 @@ function render(){
   $("mNet").textContent  = (nt>=0?"+":"")+won(nt)+"원";
   $("mNet").className    = nt>=0 ? "up" : "down";
 
+  const pos = S.mode === "pos";
+  $("mTitle").textContent = pos ? "2단계 — 지분증명 검증자" : "1단계 — 초기 분배 (가벼운 작업증명)";
+  $("mMode").textContent  = pos ? "PoS · 슬래싱으로 보안" : "PoW · 절약 모드";
+  $("mLoad").textContent  = pos
+    ? "12초에 해시 1회 (사실상 0)"
+    : "CPU 약 "+(HASH_MS/(16.7*DUTY)*100).toFixed(0)+"% (프레임 "+DUTY+"개당 "+HASH_MS+"ms)";
+  $("bMine").textContent  = M.on
+    ? (pos ? "검증 정지" : "채굴 정지")
+    : (pos ? "검증 시작" : "채굴 시작");
+  $("bMerge").disabled = pos || S.coin < MIN_STAKE;
+  $("bMerge").textContent = pos ? "전환 완료" : "더 머지 (PoS 전환)";
+  $("mHint").textContent = pos
+    ? "기기는 이제 12초에 서명 한 번만 합니다. 보상은 스테이크 비중으로 들어옵니다."
+    : "32,000 KSK 를 모으면 지분증명으로 전환할 수 있습니다 — 현재 "+kskFull(S.coin)+" KSK";
+  $("stakePanel").hidden = !pos;
+  $("rigTitle").textContent = pos ? "휴대폰 (검증 서명용 — 이제 성능은 무관)" : "채굴 장비 — 휴대폰";
+  if(pos){
+    $("pStake").textContent  = kskFull(S.staked)+" KSK";
+    $("pSeats").textContent  = seats()+"좌";
+    $("pShare").textContent  = (stakeShare()*100).toFixed(3)+"% / "+kskFull(netStake())+" KSK";
+    $("pAttest").textContent = S.attests.toLocaleString()+"회";
+    $("pSlash").textContent  = kskFull(S.slashed)+" KSK";
+    document.querySelectorAll("[data-stake]").forEach(function(b){ b.disabled = S.coin < MIN_STAKE; });
+  }
+
   $("mPool").textContent = kskFull(S.poolPaid)+" KSK / "+S.solo+"회";
   // 진행바는 세계의 다음 블록까지
   $("mBar").style.width = (S.blockTimer/TARGET_SEC*100).toFixed(1)+"%";
@@ -702,6 +841,7 @@ function render(){
   $("kFair").textContent  = pw(fairPrice())+"원  (희소성 ×"+scarcity().toFixed(3)+")";
   $("kFloor").textContent = pw(costFloor())+"원";
   $("kValue").textContent = won(S.coin*S.price)+"원";
+  $("kFee").textContent   = (FEE_RATE*100).toFixed(2)+"% · "+won(S.fees)+"원";
 
   document.querySelectorAll("[data-rig]").forEach(function(b){
     const r = RIGS.find(x => x.id === b.dataset.rig);
@@ -761,6 +901,7 @@ $("bStart").onclick = function(){
   else log("이어서 진행 — 블록 "+S.blocks+" · "+ksk(S.coin)+" KSK");
 };
 $("bMine").onclick  = toggleMine;
+$("bMerge").onclick = merge;
 $("bReset").onclick = reset;
 $("bAgain").onclick = reset;
 
@@ -788,6 +929,9 @@ document.addEventListener("click", function(e){
   if(b.dataset.sell) sell(parseFloat(b.dataset.sell));
   if(b.dataset.buy)  buy(parseFloat(b.dataset.buy));
   if(b.dataset.rig)  buyRig(RIGS.find(r => r.id === b.dataset.rig));
+  if(b.dataset.stake) stake(b.dataset.stake === "all"
+      ? MIN_STAKE * Math.floor(S.coin / MIN_STAKE) : MIN_STAKE);
+  if(b.dataset.unstake) unstake();
 });
 
 $("log").innerHTML = S.log.map(l => "<div>"+l+"</div>").join("");
