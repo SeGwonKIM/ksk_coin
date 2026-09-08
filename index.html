@@ -98,6 +98,19 @@ button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 
 /* 병렬 작업용 예약 구역 — 각 스킬은 자기 구역 안에서만 CSS 를 추가한다 */
 /* ==== [F2:부동산] CSS 시작 ==== */
+.est{border:1px solid var(--line);border-radius:6px;padding:9px;margin-bottom:8px}
+.est .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.est .nm{font-weight:600}
+.est .tag{font-size:11px;color:var(--dim);border:1px solid var(--line);
+  border-radius:4px;padding:1px 5px;margin-left:5px}
+.est .meta,.est .num{color:var(--dim);font-size:12px;margin-top:2px;
+  font-variant-numeric:tabular-nums}
+.est.mine{border-color:#2b6e39}
+select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
+  border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+#reFilters{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0}
+#reFilters label{font-size:12px;color:var(--dim);display:flex;align-items:center;gap:4px}
+#reList,#reOwned{max-height:420px;overflow-y:auto}
 /* ==== [F2:부동산] CSS 끝 ==== */
 /* ==== [F3:채굴인프라] CSS 시작 ==== */
 /* ==== [F3:채굴인프라] CSS 끝 ==== */
@@ -232,6 +245,25 @@ button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 
     <!-- 병렬 작업용 예약 구역 — 각 스킬은 자기 구역 안에만 패널을 넣는다 -->
     <!-- ==== [F2:부동산] 패널 시작 ==== -->
+    <div class="panel" data-tab="estate">
+      <h2>부동산 매물</h2>
+      <div class="row"><span>부동산 시세 배수</span><b id="reMkt">—</b></div>
+      <div class="row"><span>보유 / 초당 순임대수익</span><b id="reSum">—</b></div>
+      <div id="reFilters">
+        <select id="reArea"><option>지역 전체</option><option>서울</option><option>경기</option><option>부산</option><option>제주</option></select>
+        <select id="reUse"><option>용도 전체</option><option>주거</option><option>오피스</option><option>상가</option><option>토지</option></select>
+        <label><input type="checkbox" id="reAfford"> 살 수 있는 것만</label>
+      </div>
+      <div id="reList"></div>
+      <div class="sub">취득세 4.6% · 중개수수료 0.5%(중개사 자격 시 면제) ·
+        <b>가격·임대료는 실제 시세가 아니라 게임 진행 속도에 맞춘 근사치입니다</b></div>
+    </div>
+
+    <div class="panel" data-tab="estate">
+      <h2>보유 부동산</h2>
+      <div id="reOwned"></div>
+      <div class="sub">건물은 자산이면서 채굴장이 됩니다 — 수용 전력·냉각 효율은 채굴 인프라 기능이 붙으면 적용됩니다</div>
+    </div>
     <!-- ==== [F2:부동산] 패널 끝 ==== -->
     <!-- ==== [F3:채굴인프라] 패널 시작 ==== -->
     <!-- ==== [F3:채굴인프라] 패널 끝 ==== -->
@@ -424,6 +456,7 @@ function freshState(){
     attestTimer: 0,
     slashed: 0,           // 미가동 누출로 잃은 양
     fees: 0,              // 누적 수수료 (0.01%)
+    re: { owned: [], mkt: 1.0 },   // F2 부동산 — owned:[{id,price(매입가),yr}], mkt: 시세 배수
     demand: 1.0,          // 내부 수요 지수 (외부 데이터 없음)
     blockTimer: 0,        // 세계의 다음 블록까지 남은 시간
     poolPaid: 0,          // 풀에서 받은 누적 KSK
@@ -1133,7 +1166,156 @@ function renderAssets(){
    ksk-contract 스킬의 '공유 접점' 절차를 따른다.
    ───────────────────────────────────────────────────────── */
 /* ==== [F2:부동산] JS 시작 ==== */
-// 상태: freshState() 에 필드 추가 · 렌더: renderHooks 에 함수 등록
+// F2 — 부동산. 건물은 자산이면서 나중에 채굴장이 된다 (F3 이 kw·cool·fee 를 읽어 간다).
+// 건물 이름은 보드게임이 실제 지명을 쓰는 것과 같은 표기이고,
+// 가격·임대료는 실제 시세가 아니라 게임 진행 속도에 맞춘 근사치다 (백서 §9).
+const ACQ_TAX = 0.046;   // 취득세 4.6%
+const BROKER  = 0.005;   // 중개수수료 0.5% — 중개사 자격이 있으면 면제 (F8.7)
+
+const ESTATES = [
+  { id:"oneroom", name:"원룸",           area:"부산 사하",   use:"주거",   py:8,
+    price:400000,    rent:11000,   fee:3000,   kw:0.3, cool:1.15 },
+  { id:"officetel", name:"오피스텔",     area:"서울 금천",   use:"주거",   py:12,
+    price:1200000,   rent:34000,   fee:9000,   kw:0.6, cool:1.10 },
+  { id:"villa_hd", name:"해운대 빌라",   area:"부산 해운대", use:"주거",   py:18,
+    price:2200000,   rent:60000,   fee:16000,  kw:0.9, cool:1.08 },
+  { id:"apt_suwon", name:"수원 아파트",  area:"경기 수원",   use:"주거",   py:25,
+    price:3500000,   rent:95000,   fee:26000,  kw:1.2, cool:1.05 },
+  { id:"shop_mapo", name:"마포 상가",    area:"서울 마포",   use:"상가",   py:20,
+    price:8000000,   rent:260000,  fee:65000,  kw:3.0, cool:1.00 },
+  { id:"jeju_land", name:"제주 토지",    area:"제주 서귀포", use:"토지",   py:300,
+    price:15000000,  rent:45000,   fee:12000,  kw:0,   cool:1.00 },
+  { id:"office_ydp", name:"여의도 오피스", area:"서울 여의도", use:"오피스", py:60,
+    price:20000000,  rent:640000,  fee:160000, kw:12,  cool:0.85 },
+  { id:"tower_palace", name:"타워팰리스", area:"서울 도곡",  use:"주거",   py:70,
+    price:60000000,  rent:1500000, fee:380000, kw:8,   cool:0.80 },
+  { id:"idc_gasan", name:"가산 데이터센터", area:"서울 가산", use:"오피스", py:200,
+    price:120000000, rent:3800000, fee:950000, kw:80,  cool:0.55 }
+];
+
+const estFind  = id => ESTATES.find(function(x){ return x.id === id; });
+const estPrice = e  => e.price * S.re.mkt;
+const estOwned = id => S.re.owned.some(function(o){ return o.id === id; });
+
+// 계약 §6 — netWorth() 가 이 이름 그대로 읽어 간다. 이름을 바꾸면 대시보드가 놓친다.
+function estateValue(){
+  return S.re.owned.reduce(function(a,o){
+    const e = estFind(o.id); return a + (e ? estPrice(e) : 0);
+  }, 0);
+}
+
+// 임대료 − 관리비 의 순현금흐름. 한 달 = 730 게임시간.
+// F5(월 정산)가 붙으면 이 적립을 월말 일괄 정산으로 옮기고 아래 tickHook 의 해당 줄을
+// 지운다 — 그대로 두면 이중 청구가 된다 (ksk-monthly 스킬이 이 주석을 찾는다).
+function estNetRentPerSec(){
+  return S.re.owned.reduce(function(a,o){
+    const e = estFind(o.id); return a + (e ? (e.rent - e.fee)/MONTH_HOURS : 0);
+  }, 0);
+}
+
+// 중개사 자격은 F8 이 jobHasCert() 를 노출한다. 아직 없으면 그냥 수수료를 낸다.
+const brokerFree = () => typeof jobHasCert === "function" && jobHasCert("realtor");
+
+function buyEstate(id){
+  const e = estFind(id);
+  if(!e || estOwned(id)) return;
+  const p = estPrice(e), tax = p*ACQ_TAX, brk = brokerFree() ? 0 : p*BROKER;
+  const total = p + tax + brk;
+  if(S.cash < total) return;
+  S.cash -= total; S.spent += total;
+  S.re.owned.push({ id:id, price:p, yr:+gameYears().toFixed(2) });
+  log("<b>"+e.name+"</b> 매입 "+won(p)+"원 (취득세 "+won(tax)+
+      (brk ? " · 중개 "+won(brk) : " · 중개수수료 면제")+") · 총 -"+won(total)+"원");
+  save(); renderEstates();
+}
+
+function sellEstate(id){
+  const i = S.re.owned.findIndex(function(o){ return o.id === id; });
+  if(i < 0) return;
+  const o = S.re.owned[i], e = estFind(id);
+  const p = estPrice(e), brk = brokerFree() ? 0 : p*BROKER;
+  const got = p - brk, gain = got - o.price;
+  S.cash += got; S.re.owned.splice(i, 1);
+  log("<b>"+e.name+"</b> 매도 "+won(got)+"원 · 손익 "+(gain>=0?"+":"")+won(gain)+"원");
+  save(); renderEstates();
+}
+
+tickHooks.push(function(dt){
+  // 부동산 시세 — 장기 우상향 추세로 되돌아오는 랜덤워크 (50년에 +80%)
+  const trend = 1 + (gameYears()/50)*0.8;
+  S.re.mkt += ((trend - S.re.mkt)*0.01 + (Math.random()-0.5)*0.006) * dt;
+  S.re.mkt = clamp(S.re.mkt, 0.5, 4);
+  // 임대료 적립 — F5 가 붙으면 이 줄을 월말 정산으로 옮긴다 (이중 청구 주의)
+  if(S.re.owned.length) S.cash += estNetRentPerSec() * dt;
+});
+
+let reArea = "지역 전체", reUse = "용도 전체", reAfford = false;
+
+function estCard(e, owned){
+  const p = estPrice(e), tax = p*ACQ_TAX, brk = brokerFree() ? 0 : p*BROKER;
+  const total = p + tax + brk;
+  if(owned){
+    const o = S.re.owned.find(function(x){ return x.id === e.id; });
+    const gain = (p - brk) - o.price, up = gain >= 0;
+    return '<div class="est mine"><div class="top"><div>'+
+      '<div class="nm">'+e.name+'<span class="tag">'+e.area+'</span>'+
+        '<span class="tag">'+e.use+' '+e.py+'평</span></div>'+
+      '<div class="meta">매입 '+won(o.price)+'원 ('+o.yr+'년차) → 현재 '+won(p)+'원</div>'+
+      '<div class="num">평가손익 <b class="'+(up?"up":"down")+'">'+(up?"+":"")+won(gain)+'원</b>'+
+        ' · 월 임대 '+won(e.rent)+' − 관리비 '+won(e.fee)+'</div>'+
+      '</div><button class="sell sm" data-sellre="'+e.id+'">매도</button></div></div>';
+  }
+  const can = S.cash >= total;
+  return '<div class="est"><div class="top"><div>'+
+    '<div class="nm">'+e.name+'<span class="tag">'+e.area+'</span>'+
+      '<span class="tag">'+e.use+' '+e.py+'평</span></div>'+
+    '<div class="meta">'+won(p)+'원 · 취득세·중개 포함 <b>'+won(total)+'원</b></div>'+
+    '<div class="num">월 임대 '+won(e.rent)+' − 관리비 '+won(e.fee)+
+      ' = <b class="up">'+won(e.rent-e.fee)+'원/월</b> · 수용 '+e.kw+'kW · 냉각 ×'+e.cool+'</div>'+
+    '</div><button class="buy sm" data-buyre="'+e.id+'"'+(can?"":" disabled")+'>매입</button>'+
+    '</div></div>';
+}
+
+function renderEstates(){
+  if(!$("reList")) return;
+  $("reMkt").textContent = "×"+S.re.mkt.toFixed(3);
+  $("reMkt").className    = S.re.mkt >= 1 ? "up" : "down";
+  $("reSum").textContent  = S.re.owned.length+"채 · "+won(estateValue())+"원 · +"+
+                            won(estNetRentPerSec())+"원/초";
+
+  const list = ESTATES.filter(function(e){
+    if(estOwned(e.id)) return false;
+    if(reArea !== "지역 전체" && e.area.indexOf(reArea) !== 0) return false;
+    if(reUse  !== "용도 전체" && e.use !== reUse) return false;
+    if(reAfford){
+      const p = estPrice(e);
+      if(S.cash < p + p*ACQ_TAX + (brokerFree() ? 0 : p*BROKER)) return false;
+    }
+    return true;
+  });
+  $("reList").innerHTML = list.length
+    ? list.map(function(e){ return estCard(e, false); }).join("")
+    : '<div class="sub">조건에 맞는 매물이 없습니다</div>';
+
+  $("reOwned").innerHTML = S.re.owned.length
+    ? S.re.owned.map(function(o){ const e = estFind(o.id); return e ? estCard(e, true) : ""; }).join("")
+    : '<div class="sub">아직 보유한 부동산이 없습니다</div>';
+}
+renderHooks.push(renderEstates);
+
+// 자기 리스너를 둔다 — 공유 위임 리스너를 고치지 않아 구역 충돌이 없다
+document.addEventListener("click", function(ev){
+  const b = ev.target.closest("button");
+  if(!b) return;
+  if(b.dataset.buyre)  buyEstate(b.dataset.buyre);
+  if(b.dataset.sellre) sellEstate(b.dataset.sellre);
+});
+document.addEventListener("change", function(ev){
+  const t = ev.target;
+  if(t.id === "reArea")   { reArea   = t.value;   renderEstates(); }
+  if(t.id === "reUse")    { reUse    = t.value;   renderEstates(); }
+  if(t.id === "reAfford") { reAfford = t.checked; renderEstates(); }
+});
 /* ==== [F2:부동산] JS 끝 ==== */
 
 /* ==== [F3:채굴인프라] JS 시작 ==== */
