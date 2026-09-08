@@ -3,6 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- 이 페이지는 외부 요청이 0건이다. 그래서 가장 엄격한 정책을 비용 없이 걸 수 있다.
+     핵심은 connect-src 'none' — 만에 하나 스크립트가 주입돼도 **바깥으로 내보낼 곳이 없다.**
+     GitHub Pages 는 헤더를 못 붙이므로 meta 로 건다.
+     'unsafe-inline' 두 개는 이 파일이 CSS·JS 를 인라인으로 들고 있기 때문이고,
+     인라인 script 를 해시로 고정하면 매번 값이 바뀌어 유지가 안 된다. -->
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<!-- frame-ancestors 는 넣지 않았다 — meta 로는 브라우저가 무시한다. 클릭재킹을 막으려면
+     HTTP 헤더가 필요하고 GitHub Pages 는 헤더를 못 붙인다. 하는 일 없는 지시자를
+     적어 두면 막혀 있다고 착각하게 되므로 뺐다. -->
 <title>KSK COIN — 채굴과 가상경제 시뮬레이터</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -921,6 +931,20 @@ function hs(v){
 const big = v => v >= 1e6 ? (v/1e6).toFixed(2)+"M" : v >= 1e3 ? (v/1e3).toFixed(1)+"k" : Math.round(v);
 const $ = id => document.getElementById(id);
 
+// 저장된 로그는 시작할 때 다시 innerHTML 로 그려진다. 저장소가 오염되면 그게 **실행된다.**
+// 남 얘기가 아니다 — GitHub Pages 는 계정의 모든 저장소가 오리진 하나(*.github.io)를
+// 공유하므로, 옆 페이지에서 심은 값이 여기서 실행될 수 있다.
+// 그래서 불러온 로그는 우리가 실제로 쓰는 태그만 남기고 나머지는 전부 글자로 만든다.
+// (실행 재현: S.log 에 <img src=x onerror=…> 를 넣고 다시 그리면 실제로 돈다)
+function sanitizeLog(s){
+  const esc = String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return esc
+    .replace(/&lt;b&gt;/g, "<b>")
+    .replace(/&lt;\/b&gt;/g, "</b>")
+    .replace(/&lt;span class="dimtxt"&gt;/g, '<span class="dimtxt">')
+    .replace(/&lt;\/span&gt;/g, "</span>");
+}
+
 function log(msg){
   const t = new Date().toLocaleTimeString("ko-KR", {hour12:false});
   S.log.unshift(t + " " + msg);
@@ -1353,12 +1377,37 @@ function runHooks(list, arg){
 function save(){
   try{ localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){}
 }
+// 저장값은 **바깥에서 온 데이터**다. 형식이 맞아도 값이 규칙을 깨면 받지 않는다.
+// 전에는 typeof o.coin 하나만 봤고, 실측으로 이런 것들이 통과했다:
+//   {"coin":1e999} → Infinity (JSON 은 무한대를 이렇게 실어 나른다)
+//   {"issued":"9999999"} → 문자열 (coin 말고는 타입 검사가 없었다)
+//   S.mined > S.issued → 백서 §4.2 가 경고한 지분 폭주 상태로 시작
+// 걸리면 그냥 새 판으로 시작한다 — 망가진 값으로 세계를 여는 것보다 낫다.
+const SAVE_NUM = ["coin","issued","mined","burned","blocks","price","staked",
+                  "fees","spent","netHash","baseHash","demand","slashed","poolPaid"];
+// 잔고(coin)만 음수가 될 수 있다 — 파산 직전 상태가 그렇게 저장될 수 있기 때문이다.
+const SAVE_NONNEG = SAVE_NUM.filter(function(k){ return k !== "coin"; });
+
+function saveIsSane(o){
+  for(let i = 0; i < SAVE_NUM.length; i++){
+    const k = SAVE_NUM[i], v = o[k];
+    if(v === undefined || v === null) continue;          // 없던 필드는 기본값이 채운다
+    if(typeof v !== "number" || !isFinite(v)) return false;
+    if(SAVE_NONNEG.indexOf(k) >= 0 && v < 0) return false;
+  }
+  // 불변식 — 내가 받은 양이 세계 발행량을 넘을 수 없다 (계약 §4)
+  if(typeof o.mined === "number" && typeof o.issued === "number" && o.mined > o.issued)
+    return false;
+  return true;
+}
+
 function load(){
   try{
     const raw = localStorage.getItem(SAVE_KEY);
     if(!raw) return false;
     const o = JSON.parse(raw);
     if(!o || typeof o.coin !== "number" || o.over) return false;
+    if(!saveIsSane(o)) return false;
     // 얕은 병합만 하면 중첩 객체가 통째로 덮여 새로 추가한 필드가 사라진다.
     // (옛 저장값의 hh 에 placedAt 이 없으면 undefined 가 되는 식)
     // 그래서 한 겹 아래까지 필드 단위로 병합한다.
@@ -1372,6 +1421,8 @@ function load(){
         base[k] = ov;
       }
     }
+    // 저장소에서 온 로그는 여기서 씻는다 — 화면에 그려지기 전에 딱 한 곳이다
+    if(Array.isArray(base.log)) base.log = base.log.map(sanitizeLog);
     S = base;
     return true;
   }catch(e){ return false; }
