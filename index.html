@@ -138,6 +138,14 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
 #hhList{max-height:420px;overflow-y:auto}
 /* ==== [F4:살림살이] CSS 끝 ==== */
 /* ==== [F5:월정산] CSS 시작 ==== */
+#finTable{width:100%;border-collapse:collapse;font-size:12px;
+  font-variant-numeric:tabular-nums;margin-top:8px}
+#finTable td{padding:3px 0;border-bottom:1px solid #1c2129}
+#finTable td:last-child{text-align:right}
+#finTable tr.sum td{border-top:1px solid var(--line);border-bottom:0;
+  padding-top:6px;font-weight:600}
+#finTable td.lbl{color:var(--dim)}
+.clock{font-size:20px;font-variant-numeric:tabular-nums}
 /* ==== [F5:월정산] CSS 끝 ==== */
 /* ==== [F8:직업] CSS 시작 ==== */
 .jb{border:1px solid var(--line);border-radius:6px;padding:9px;margin-bottom:6px;
@@ -330,6 +338,22 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
     </div>
     <!-- ==== [F4:살림살이] 패널 끝 ==== -->
     <!-- ==== [F5:월정산] 패널 시작 ==== -->
+    <div class="panel" data-tab="asset">
+      <h2>세계 시각과 월말 정산</h2>
+      <div class="clock" id="finClock">1년차 1월 1일</div>
+      <div class="row"><span>다음 정산까지</span><b id="finNext">—</b></div>
+      <div class="row"><span>보유세 (평가액의 0.15%/월)</span><b id="finTax" class="down">—</b></div>
+      <div class="row"><span>생활비 수준</span><b id="finLiving">—</b></div>
+      <div class="row"><span>지금 순현금흐름</span><b id="finFlow">—</b></div>
+      <div class="btns" id="finLivBtns"></div>
+      <div class="sub" id="finLivDesc">—</div>
+      <div id="finLast" class="sub">아직 정산한 달이 없습니다. 게임 한 달은 약 12분입니다.</div>
+      <table id="finTable"></table>
+      <div class="sub"><b>새로 징수하는 것은 생활비와 보유세</b>입니다 — 임대료·관리비·통신비·살림전기·월급은
+        이미 초당으로 오가고 있어 여기서 또 걷으면 이중 청구가 됩니다.
+        아래 내역은 <b>현재 요율로 환산한 참고치</b>이고, 순현금 변화는 실제 측정값입니다.
+        세율은 게임 균형용 근사치입니다.</div>
+    </div>
     <!-- ==== [F5:월정산] 패널 끝 ==== -->
     <!-- ==== [F8:직업] 패널 시작 ==== -->
     <div class="panel" data-tab="job">
@@ -542,6 +566,7 @@ function freshState(){
     attestTimer: 0,
     slashed: 0,           // 미가동 누출로 잃은 양
     fees: 0,              // 누적 수수료 (0.01%)
+    fin: { done: 0, cash0: null, last: null, living: "frugal" },   // F5 월정산·생활비
     job: { id: null, months: 0, certs: [], edu: 0, study: null, agency: false },   // F8 직업
     hh: { items: {}, placedAt: null },   // F4 살림살이 — items: {품목id:{n:개수, age:경과 게임개월}}
     mine: { at: null, place: {}, penalty: 0 },   // F3 채굴 인프라 — at: 채굴장 건물id, place: {폰id:대수}
@@ -1095,7 +1120,20 @@ function load(){
     if(!raw) return false;
     const o = JSON.parse(raw);
     if(!o || typeof o.coin !== "number" || o.over) return false;
-    S = Object.assign(freshState(), o);
+    // 얕은 병합만 하면 중첩 객체가 통째로 덮여 새로 추가한 필드가 사라진다.
+    // (옛 저장값의 hh 에 placedAt 이 없으면 undefined 가 되는 식)
+    // 그래서 한 겹 아래까지 필드 단위로 병합한다.
+    const base = freshState();
+    for(const k in o){
+      const bv = base[k], ov = o[k];
+      if(bv && ov && typeof bv === "object" && typeof ov === "object" &&
+         !Array.isArray(bv) && !Array.isArray(ov)){
+        base[k] = Object.assign({}, bv, ov);
+      }else if(ov !== undefined){
+        base[k] = ov;
+      }
+    }
+    S = base;
     return true;
   }catch(e){ return false; }
 }
@@ -1762,7 +1800,177 @@ document.addEventListener("change", function(ev){
 /* ==== [F4:살림살이] JS 끝 ==== */
 
 /* ==== [F5:월정산] JS 시작 ==== */
-// 상태: freshState() 에 필드 추가 · 렌더: renderHooks 에 함수 등록
+// F5 — 세계 시각·월말 정산·파산 회생.
+//
+// **이중 청구를 구조적으로 막았다.** 임대료·관리비(F2), 통신비·냉각차액(F0·F3),
+// 살림전기·인테리어보너스(F4), 월급(F8) — 여섯 항목이 모두 이미 초당으로 오간다.
+// 그래서 이 층이 새로 **징수하는 것은 보유세 하나뿐**이고, 나머지는 명세(보고)로만 보여준다.
+// 각 층의 tickHooks 를 건드리지 않았으므로 구역 충돌도 없다.
+//
+// 시계도 하나만 쓴다. dt 로 따로 세는 시계를 두면 블록 기반 gameYears() 와 드리프트가 생기므로
+// S.blocks 에서 파생시킨다. 한 달 = 730 게임시간 = 41.67 블록.
+const TAX_RATE = 0.0015;   // 보유세 — 부동산 평가액의 0.15%/월 (게임 균형용 근사)
+
+// 생활비 — 사람이 먹고사는 비용. 이게 없으면 알바 월급만으로도 흑자가 나서
+// 경제가 성립하지 않는다(실제로 그랬다). 통신비·전기요금은 생활비의 일부일 뿐이다.
+// 수준을 고르면 월 지출과 함께 **시험 합격률·승진 속도**가 달라진다 —
+// 문화생활과 자기계발이 커리어에 영향을 준다는 뜻이고, F8 이 이 값을 읽어 간다.
+const LIVING = [
+  { id:"frugal",  name:"절약형", cost:100000, study:0.85, tenure:0.8,
+    desc:"식비·교통비만. 문화생활 없음 — 시험 합격률과 승진이 느려진다" },
+  { id:"normal",  name:"표준형", cost:220000, study:1.00, tenure:1.0,
+    desc:"식비·교통·의료보험 + 약간의 문화생활" },
+  { id:"comfort", name:"여유형", cost:450000, study:1.20, tenure:1.3,
+    desc:"공연·여행·자기계발 포함 — 시험 합격률과 승진이 빨라진다" }
+];
+const livingNow   = () => LIVING.find(function(l){ return l.id === S.fin.living; }) || LIVING[0];
+const livingPerSec = () => livingNow().cost / MONTH_HOURS;
+// 계약 §5 패턴 — F8 이 typeof 가드로 읽어 간다. 이름을 바꾸면 효과가 사라진다.
+const livingStudyMul  = () => livingNow().study;
+const livingTenureMul = () => livingNow().tenure;
+
+function setLiving(id){
+  const l = LIVING.find(function(x){ return x.id === id; });
+  if(!l || S.fin.living === id) return;
+  S.fin.living = id;
+  log("생활 수준을 <b>"+l.name+"</b> 으로 바꿨습니다 — 월 "+won(l.cost)+
+      "원 · 시험 ×"+l.study+" · 승진 ×"+l.tenure);
+  save(); renderFin();
+}
+
+const worldMonths = () => S.blocks * TARGET_SEC / MONTH_HOURS;
+const gYear  = () => Math.floor(worldMonths() / 12) + 1;
+const gMonth = () => Math.floor(worldMonths()) % 12 + 1;
+const gDay   = () => Math.floor((worldMonths() % 1) * 30) + 1;
+
+const holdingTax = () => (typeof estateValue === "function" ? estateValue() : 0) * TAX_RATE;
+
+function settle(){
+  const mo = MONTH_HOURS;
+  const job = (typeof payNow === "function" && S.job && S.job.id) ? payNow() : 0;
+  const rent  = typeof estNetRentPerSec   === "function" ? estNetRentPerSec()*mo   : 0;
+  const deco  = typeof hhRentBonusPerSec  === "function" ? hhRentBonusPerSec()*mo  : 0;
+  const plan  = M.on ? costPerSec() * (typeof coolFactor === "function" ? coolFactor() : 1) * mo : 0;
+  const hhel  = typeof hhElecPerSec       === "function" ? hhElecPerSec()*mo       : 0;
+  const live  = livingNow().cost;
+  const tax   = holdingTax();
+
+  // 실제로 걷는 것은 보유세뿐이다 (위 여섯 항목은 이미 초당으로 처리됐다)
+  if(tax > 0) S.cash = Math.max(0, S.cash - tax);
+
+  const real = S.cash - (S.fin.cash0 === null ? S.cash : S.fin.cash0);
+  S.fin.last = { m:S.fin.done, job:job, rent:rent, deco:deco,
+                 plan:plan, hhel:hhel, live:live, tax:tax, real:real };
+  S.fin.cash0 = S.cash;
+
+  log("<b>"+gYear()+"년차 "+gMonth()+"월 정산</b> — 순현금 "+
+      (real>=0?"+":"")+won(real)+"원"+(tax>0 ? " · 보유세 -"+won(tax)+"원" : ""));
+  recover();
+}
+
+// 지금 이 순간의 순현금흐름(원/초). 모든 층의 요율을 합친다.
+function netFlowPerSec(){
+  let v = 0;
+  if(typeof payNow === "function" && S.job && S.job.id) v += payNow()/MONTH_HOURS;
+  if(typeof estNetRentPerSec  === "function") v += estNetRentPerSec();
+  if(typeof hhRentBonusPerSec === "function") v += hhRentBonusPerSec();
+  if(M.on) v -= costPerSec() * (typeof coolFactor === "function" ? coolFactor() : 1);
+  if(typeof hhElecPerSec === "function") v -= hhElecPerSec();
+  v -= livingPerSec();
+  return v;
+}
+
+// F5.4 파산 회생 — 팔 자산이 있으면 파산시키지 않는다.
+// F0 의 파산 판정은 채굴 중에만 돌아서, 채굴을 끈 채 현금이 0 이 되면 교착 상태가 됐다.
+//
+// 판정을 `현금 <= 0` 으로 두면 안 된다. 월급 훅이 먼저 돌아 현금을 몇 원 올려놓으면
+// "괜찮다"고 오판한다(실측으로 확인했다). 그래서 **순유출이 현금을 곧 말리는지**로 본다.
+const RECOVER_SEC = 60;   // 이만큼도 못 버티면 자산을 처분한다
+
+function recover(){
+  if(S.over) return;
+  const flow = netFlowPerSec();
+  if(flow >= 0) return;                        // 흑자면 회생할 이유가 없다
+  if(S.cash > -flow * RECOVER_SEC) return;     // 아직 버틸 현금이 있다
+
+  if(S.coin > 0){
+    log("<b>현금 부족</b> — 보유 코인을 전량 매도해 메웁니다");
+    sell(1);
+    if(S.cash > 0) return;
+  }
+  if(S.re && S.re.owned.length){
+    const cheapest = S.re.owned.slice().sort(function(a,b){
+      return estPrice(estFind(a.id)) - estPrice(estFind(b.id));
+    })[0];
+    log("<b>강제 매각</b> — 현금이 없어 "+estFind(cheapest.id).name+" 을(를) 처분합니다");
+    sellEstate(cheapest.id);
+    return;
+  }
+  // 팔 것이 없고 순유출이 계속된다 — 파산이다. (생활비는 항상 나가므로 여기 도달한다)
+  endGame(false);
+}
+
+tickHooks.push(function(dt){
+  if(S.fin.cash0 === null) S.fin.cash0 = S.cash;
+
+  // 생활비는 새 항목이므로 여기서 실제로 징수한다 (이중 청구가 아니다).
+  // 다른 층과 일관되게 초당으로 빠져나간다 — 월말 명세에는 환산해서 보여준다.
+  if(S.cash > 0) S.cash = Math.max(0, S.cash - livingPerSec() * dt);
+
+  let guard = 0;
+  while(Math.floor(worldMonths()) > S.fin.done && guard++ < 24){
+    S.fin.done++;
+    settle();
+  }
+  recover();   // 월말을 기다리지 않고 교착을 바로 푼다
+});
+
+function renderFin(){
+  if(!$("finClock")) return;
+  $("finClock").textContent = gYear()+"년차 "+gMonth()+"월 "+gDay()+"일";
+  const frac = worldMonths() - Math.floor(worldMonths());
+  $("finNext").textContent = ((1-frac)*MONTH_HOURS).toFixed(0)+"초 뒤 ("+
+    ((1-frac)*100).toFixed(0)+"% 남음)";
+  const tax = holdingTax();
+  $("finTax").textContent = tax > 0 ? "-"+won(tax)+"원/월" : "0원 (보유 부동산 없음)";
+  $("finTax").className   = tax > 0 ? "down" : "dimtxt";
+
+  const l = livingNow(), flow = netFlowPerSec();
+  $("finLiving").textContent = l.name+" · -"+won(l.cost)+"원/월";
+  $("finFlow").textContent   = (flow>=0?"+":"")+won(flow)+"원/초";
+  $("finFlow").className     = flow>=0 ? "up" : "down";
+  $("finLivBtns").innerHTML = LIVING.map(function(x){
+    return '<button class="sm'+(x.id===l.id?"":" ghost")+'" data-living="'+x.id+'">'+
+      x.name+' '+won(x.cost)+'원</button>';
+  }).join("");
+  $("finLivDesc").textContent = l.desc+" (시험 ×"+l.study+" · 승진 ×"+l.tenure+")";
+
+  const L = S.fin.last;
+  if(!L){
+    $("finTable").innerHTML = "";
+    return;
+  }
+  $("finLast").textContent = "지난 정산: "+L.m+"개월차";
+  const row = (lbl, v, cls) => v === 0 ? "" :
+    '<tr><td class="lbl">'+lbl+'</td><td class="'+cls+'">'+
+    (v>0?"+":"")+won(v)+'원</td></tr>';
+  $("finTable").innerHTML =
+    row("월급·중개 수입", L.job, "up") +
+    row("임대수익 (관리비 차감)", L.rent, "up") +
+    row("인테리어 등급 보너스", L.deco, "up") +
+    row("통신비", -L.plan, "down") +
+    row("살림 전기요금", -L.hhel, "down") +
+    row("생활비 ("+livingNow().name+")", -(L.live||0), "down") +
+    row("보유세 (실제 징수)", -L.tax, "down") +
+    '<tr class="sum"><td>실제 순현금 변화</td><td class="'+
+      (L.real>=0?"up":"down")+'">'+(L.real>=0?"+":"")+won(L.real)+'원</td></tr>';
+}
+renderHooks.push(renderFin);
+
+document.addEventListener("click", function(ev){
+  const b = ev.target.closest("button");
+  if(b && b.dataset.living) setLiving(b.dataset.living);
+});
 /* ==== [F5:월정산] JS 끝 ==== */
 
 /* ==== [F8:직업] JS 시작 ==== */
@@ -1801,8 +2009,13 @@ function jobHasCert(id){ return S.job.certs.indexOf(id) >= 0; }
 
 const jobNow = () => S.job.id ? jobFind(S.job.id) : null;
 
-// 승진 — 근속 개월에 따라 월급이 오른다 (10년에 +50%)
-const tenureMul = () => 1 + Math.min(S.job.months, TENURE_CAP)/TENURE_CAP * 0.5;
+// 승진 — 근속 개월에 따라 월급이 오른다 (10년에 +50%).
+// 생활 수준(F5)이 승진 속도에 영향을 준다 — 여유형은 자기계발에 쓸 여력이 있다.
+// F5 가 없어도 동작하도록 typeof 가드를 쓴다 (계약 §5 의 교차 참조 패턴).
+const tenureMul = () => {
+  const life = typeof livingTenureMul === "function" ? livingTenureMul() : 1;
+  return 1 + Math.min(S.job.months, TENURE_CAP)/TENURE_CAP * 0.5 * life;
+};
 
 // 개업하면 월급 대신 중개 수입을 받는다. 부동산 시장이 활발하면 더 번다.
 function payNow(){
@@ -1888,7 +2101,9 @@ tickHooks.push(function(dt){
     if(S.job.study.left <= 0){
       const c = certFind(S.job.study.id);
       S.job.study = null;
-      if(c && Math.random() < c.odds){
+      // 생활 수준이 합격률을 좌우한다 — 문화생활·자기계발의 값이다 (F5)
+      const lm = typeof livingStudyMul === "function" ? livingStudyMul() : 1;
+      if(c && Math.random() < Math.min(0.98, c.odds * lm)){
         if(c.edu > 0){
           S.job.edu = Math.max(S.job.edu, c.edu);
           log("<b>"+c.name+"</b> 취득! 학력 "+S.job.edu+"단계");
@@ -1958,7 +2173,7 @@ function renderJobs(){
     return '<div class="jb'+(done?" now":"")+'"><div>'+
       '<div class="nm">'+c.name+'</div>'+
       '<div class="meta">응시료 '+won(c.fee)+'원 · '+c.months+'개월 · 합격률 '+
-        (c.odds*100).toFixed(0)+'%'+
+        (Math.min(0.98, c.odds*(typeof livingStudyMul==="function"?livingStudyMul():1))*100).toFixed(0)+'%'+
         (c.edu ? ' · 취득 시 학력 '+c.edu+'단계' : '')+
         (c.needEdu ? ' · 학력 '+c.needEdu+'단계 필요' : '')+'</div>'+
       (why && !done ? '<div class="why">'+why+'</div>' : '')+
