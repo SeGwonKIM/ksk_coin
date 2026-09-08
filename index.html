@@ -124,6 +124,18 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
 .bar2>div.over{background:var(--down)}
 /* ==== [F3:채굴인프라] CSS 끝 ==== */
 /* ==== [F4:살림살이] CSS 시작 ==== */
+.gd{display:flex;justify-content:space-between;align-items:center;gap:8px;
+  border:1px solid var(--line);border-radius:6px;padding:8px 9px;margin-bottom:6px}
+.gd.have{border-color:#2b6e39}
+.gd.broken{border-color:var(--down)}
+.gd .nm{font-weight:600;font-size:13px}
+.gd .meta{color:var(--dim);font-size:11px;margin-top:2px;font-variant-numeric:tabular-nums}
+.gd .life{height:4px;background:#0b0f14;border-radius:2px;overflow:hidden;margin-top:4px;width:120px}
+.gd .life>div{height:100%;background:var(--up)}
+.gd .life>div.low{background:var(--gold)}
+.gd .life>div.dead{background:var(--down)}
+#hhCats{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+#hhList{max-height:420px;overflow-y:auto}
 /* ==== [F4:살림살이] CSS 끝 ==== */
 /* ==== [F5:월정산] CSS 시작 ==== */
 /* ==== [F5:월정산] CSS 끝 ==== */
@@ -293,6 +305,20 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
     </div>
     <!-- ==== [F3:채굴인프라] 패널 끝 ==== -->
     <!-- ==== [F4:살림살이] 패널 시작 ==== -->
+    <div class="panel" data-tab="home">
+      <h2>살림살이 — 집을 꾸미는 일도 경제다</h2>
+      <div class="row"><span>상시 소비전력 / 초당 전기요금</span><b id="hhW" class="down">—</b></div>
+      <div class="row"><span>인테리어 등급 / 임대료 배수</span><b id="hhG" class="up">—</b></div>
+      <div class="row"><span>살림 잔존가치</span><b id="hhV">—</b></div>
+      <div class="row"><span>설치 장소</span><b id="hhPlace">보관함</b></div>
+      <div class="btns"><select id="hhAt"></select></div>
+      <div id="hhCats"></div>
+      <div id="hhList"></div>
+      <div class="sub">가전은 전기를 먹고, 가구·인테리어는 등급을 올립니다.
+        등급 배수는 <b>주거용 건물</b>의 임대료에만 적용됩니다 —
+        데이터센터 임대료가 소파 때문에 오를 이유는 없으니까요.
+        소비전력은 정격이 아니라 <b>상시 평균</b>이고, 가격은 게임 균형용 근사치입니다.</div>
+    </div>
     <!-- ==== [F4:살림살이] 패널 끝 ==== -->
     <!-- ==== [F5:월정산] 패널 시작 ==== -->
     <!-- ==== [F5:월정산] 패널 끝 ==== -->
@@ -481,6 +507,7 @@ function freshState(){
     attestTimer: 0,
     slashed: 0,           // 미가동 누출로 잃은 양
     fees: 0,              // 누적 수수료 (0.01%)
+    hh: { items: {}, placedAt: null },   // F4 살림살이 — items: {품목id:{n:개수, age:경과 게임개월}}
     mine: { at: null, place: {}, penalty: 0 },   // F3 채굴 인프라 — at: 채굴장 건물id, place: {폰id:대수}
     re: { owned: [], mkt: 1.0 },   // F2 부동산 — owned:[{id,price(매입가),yr}], mkt: 시세 배수
     demand: 1.0,          // 내부 수요 지수 (외부 데이터 없음)
@@ -1501,7 +1528,199 @@ document.addEventListener("change", function(ev){
 /* ==== [F3:채굴인프라] JS 끝 ==== */
 
 /* ==== [F4:살림살이] JS 시작 ==== */
-// 상태: freshState() 에 필드 추가 · 렌더: renderHooks 에 함수 등록
+// F4 — 살림살이. 가전·가구·인테리어가 장식이 아니라 계산에 들어간다.
+// 가전은 전기를 먹고(등급 낮음), 가구·인테리어는 등급을 올린다(전기 0).
+// 그 대비가 이 층의 긴장이다: 편의를 사면 요금이 늘고, 등급을 사면 임대료가 는다.
+//
+// w 는 정격이 아니라 **상시 평균 소비전력**이다. 스킬은 "에어컨 1800W" 를 예로 들었지만
+// 정격으로 24시간 돌리면 157,680원/월 — 채굴 수익(43,800원/월)의 3.6배라 아무도 안 산다.
+// 실제 가전은 듀티 사이클이 있으므로 평균값으로 잡는다.
+const HH_GRADE_CAP = 60;    // 이 등급에서 임대료 배수가 최대(+50%)에 닿는다
+const HH_FIX_RATE  = 0.6;   // 고장난 품목 교체 비용 = 원가의 60%
+
+const GOODS = [
+  // 가전 — 전기를 먹는다
+  { id:"fridge",  name:"양문형 냉장고", cat:"가전",     cost:1200000, w:40,  grade:1, life:120 },
+  { id:"aircon",  name:"벽걸이 에어컨", cat:"가전",     cost:800000,  w:450, grade:1, life:96  },
+  { id:"washer",  name:"드럼 세탁기",   cat:"가전",     cost:700000,  w:30,  grade:1, life:108 },
+  { id:"tv",      name:"대형 TV",       cat:"가전",     cost:1500000, w:60,  grade:2, life:84  },
+  { id:"pc",      name:"데스크톱 PC",   cat:"가전",     cost:1300000, w:120, grade:1, life:60  },
+  // 가구 — 전기 0, 등급 중간
+  { id:"bed",     name:"퀸 침대",       cat:"가구",     cost:600000,  w:0,   grade:3, life:180 },
+  { id:"sofa",    name:"패브릭 소파",   cat:"가구",     cost:900000,  w:0,   grade:4, life:144 },
+  { id:"table",   name:"원목 식탁",     cat:"가구",     cost:700000,  w:0,   grade:3, life:180 },
+  { id:"closet",  name:"붙박이 옷장",   cat:"가구",     cost:1100000, w:0,   grade:4, life:240 },
+  // 인테리어 — 등급이 높다
+  { id:"curtain", name:"암막 커튼",     cat:"인테리어", cost:300000,  w:0,   grade:2, life:96  },
+  { id:"light",   name:"간접 조명",     cat:"인테리어", cost:400000,  w:15,  grade:3, life:120 },
+  { id:"bath",    name:"욕실 리모델링", cat:"인테리어", cost:3500000, w:0,   grade:8, life:180 },
+  { id:"floor",   name:"원목 마루",     cat:"인테리어", cost:2500000, w:0,   grade:7, life:240 },
+  { id:"kitchen", name:"주방 리모델링", cat:"인테리어", cost:5000000, w:0,   grade:9, life:180 }
+];
+
+const goodFind = id => GOODS.find(function(g){ return g.id === id; });
+const hhOf     = id => S.hh.items[id] || { n:0, age:0 };
+// 수명이 다하면 고장이다 — 전기도 안 먹고 등급도 0. 교체해야 살아난다.
+const hhAlive  = g => hhOf(g.id).n > 0 && hhOf(g.id).age < g.life;
+const hhLifeLeft = g => clamp(1 - hhOf(g.id).age / g.life, 0, 1);
+
+// 계약 §5·§6 — 이 세 이름은 F2·F5·순자산 대시보드가 그대로 읽어 간다. 바꾸지 않는다.
+function hhWatts(){
+  return GOODS.reduce(function(a,g){ return a + (hhAlive(g) ? hhOf(g.id).n * g.w : 0); }, 0);
+}
+function hhGrade(){
+  return GOODS.reduce(function(a,g){ return a + (hhAlive(g) ? hhOf(g.id).n * g.grade : 0); }, 0);
+}
+function hhValue(){   // 잔존가치 — 남은 수명 비율만큼
+  return GOODS.reduce(function(a,g){
+    return a + hhOf(g.id).n * g.cost * hhLifeLeft(g);
+  }, 0);
+}
+const hhGradeMul   = () => 1 + Math.min(hhGrade(), HH_GRADE_CAP)/HH_GRADE_CAP * 0.5;
+const hhElecPerSec = () => elecRate() * (hhWatts()/1000);
+
+// 살림을 놓은 건물. 주거용이고 아직 보유 중이어야 한다.
+function hhAtEstate(){
+  if(!S.hh.placedAt) return null;
+  if(!S.re.owned.some(function(o){ return o.id === S.hh.placedAt; })) return null;
+  const e = estFind(S.hh.placedAt);
+  return (e && e.use === "주거") ? e : null;
+}
+// 등급 보너스로 늘어나는 임대료(증분만).
+// F2 는 이미 완성돼 hhGrade() 를 읽지 않으므로, F2 구역을 건드리지 않고 여기서 더한다.
+// F5(월 정산)가 붙으면 이 적립을 월말 정산으로 옮기고 아래 훅의 해당 줄을 지운다.
+function hhRentBonusPerSec(){
+  const e = hhAtEstate();
+  if(!e) return 0;
+  return (e.rent - e.fee)/MONTH_HOURS * (hhGradeMul() - 1);
+}
+
+function buyGood(id){
+  const g = goodFind(id);
+  if(!g || S.cash < g.cost) return;
+  const it = hhOf(id);
+  S.cash -= g.cost; S.spent += g.cost;
+  S.hh.items[id] = { n: it.n + 1, age: it.n > 0 ? it.age : 0 };
+  log("<b>"+g.name+"</b> 구매 -"+won(g.cost)+"원 · 등급 +"+g.grade+
+      (g.w ? " · 평균 "+g.w+"W" : ""));
+  save(); renderHouse();
+}
+
+function fixGood(id){
+  const g = goodFind(id), it = hhOf(id);
+  if(!g || it.n <= 0 || it.age < g.life) return;
+  const cost = g.cost * HH_FIX_RATE * it.n;
+  if(S.cash < cost) return;
+  S.cash -= cost; S.spent += cost;
+  S.hh.items[id] = { n: it.n, age: 0 };
+  log("<b>"+g.name+"</b> 교체 -"+won(cost)+"원 ("+it.n+"개) · 수명 복구");
+  save(); renderHouse();
+}
+
+tickHooks.push(function(dt){
+  // 놓아 둔 건물을 팔면 보관함으로 되돌린다 (F2 매도 함수를 건드리지 않는다)
+  if(S.hh.placedAt && !S.re.owned.some(function(o){ return o.id === S.hh.placedAt; })){
+    log("살림을 놓아 둔 건물을 매도해 보관함으로 옮겼습니다");
+    S.hh.placedAt = null;
+  }
+  // 감가상각 — 한 달 = 730 게임시간
+  const mo = dt / MONTH_HOURS;
+  for(const id in S.hh.items){
+    const it = S.hh.items[id], g = goodFind(id);
+    if(!g || it.n <= 0) continue;
+    const was = it.age < g.life;
+    it.age += mo;
+    if(was && it.age >= g.life)
+      log("<b>"+g.name+"</b> 수명이 끝났습니다 — 교체해야 다시 작동합니다");
+  }
+  // 살림 전기요금은 채굴을 끄든 켜든 나간다. 냉장고는 늘 돌아간다.
+  if(S.cash > 0) S.cash = Math.max(0, S.cash - hhElecPerSec() * dt);
+  // 인테리어 등급이 올린 임대료(증분). F5 가 붙으면 월말 정산으로 옮긴다.
+  const bonus = hhRentBonusPerSec();
+  if(bonus > 0) S.cash += bonus * dt;
+});
+
+let hhCat = "전체";
+
+function renderHouse(){
+  if(!$("hhList")) return;
+  const w = hhWatts();
+  $("hhW").textContent = w+"W · -"+won(hhElecPerSec())+"원/초";
+  $("hhW").className   = w > 0 ? "down" : "dimtxt";
+  $("hhG").textContent = hhGrade()+"점 · ×"+hhGradeMul().toFixed(3);
+  $("hhG").className   = hhGrade() > 0 ? "up" : "dimtxt";
+  $("hhV").textContent = won(hhValue())+"원";
+
+  const at = hhAtEstate(), bonus = hhRentBonusPerSec();
+  $("hhPlace").textContent = at
+    ? at.name+" · 임대료 +"+won(bonus)+"원/초"
+    : (S.hh.placedAt ? "보관함 (주거용 건물이 아님)" : "보관함 — 등급 보너스 없음");
+  $("hhPlace").className = at ? "up" : "dimtxt";
+
+  // 주거용 보유 건물만 설치 장소가 된다
+  const homes = S.re.owned.map(function(o){ return estFind(o.id); })
+    .filter(function(e){ return e && e.use === "주거"; });
+  const sel = $("hhAt");
+  const want = homes.map(function(e){ return e.id; }).join(",");
+  if(sel.dataset.built !== want){
+    sel.dataset.built = want;
+    sel.innerHTML = '<option value="">보관함 (설치 안 함)</option>' +
+      homes.map(function(e){
+        return '<option value="'+e.id+'">'+e.name+' 에 설치</option>';
+      }).join("");
+  }
+  if(sel.value !== (S.hh.placedAt || "")) sel.value = S.hh.placedAt || "";
+  sel.disabled = homes.length === 0;
+
+  $("hhCats").innerHTML = ["전체","가전","가구","인테리어"].map(function(c){
+    return '<button class="sm'+(c===hhCat?"":" ghost")+'" data-hhcat="'+c+'">'+c+'</button>';
+  }).join("");
+
+  $("hhList").innerHTML = GOODS
+    .filter(function(g){ return hhCat === "전체" || g.cat === hhCat; })
+    .map(function(g){
+      const it = hhOf(g.id), broken = it.n > 0 && it.age >= g.life;
+      const left = hhLifeLeft(g), pct = (left*100).toFixed(0);
+      const cls = broken ? "gd broken" : it.n > 0 ? "gd have" : "gd";
+      const barCls = broken ? "dead" : left < 0.25 ? "low" : "";
+      const lifeBar = it.n > 0
+        ? '<div class="life"><div class="'+barCls+'" style="width:'+pct+'%"></div></div>'
+        : "";
+      const fixCost = g.cost * HH_FIX_RATE * it.n;
+      const btn = broken
+        ? '<button class="sell sm" data-hhfix="'+g.id+'"'+
+          (S.cash < fixCost ? " disabled" : "")+'>교체 '+won(fixCost)+'원</button>'
+        : '<button class="buy sm" data-hhbuy="'+g.id+'"'+
+          (S.cash < g.cost ? " disabled" : "")+'>구매</button>';
+      return '<div class="'+cls+'"><div>'+
+        '<div class="nm">'+g.name+
+          (it.n ? ' <span class="dimtxt">×'+it.n+'</span>' : '')+
+          (broken ? ' <span class="down">고장</span>' : '')+'</div>'+
+        '<div class="meta">'+g.cat+' · '+won(g.cost)+'원 · 등급 +'+g.grade+' · '+
+          (g.w ? '평균 '+g.w+'W' : '전기 없음')+' · 수명 '+g.life+'개월'+
+          (it.n ? ' (남은 '+pct+'%)' : '')+'</div>'+
+        lifeBar+'</div>'+btn+'</div>';
+    }).join("");
+}
+renderHooks.push(renderHouse);
+
+// 자기 리스너 — 공유 위임 리스너를 고치지 않는다
+document.addEventListener("click", function(ev){
+  const b = ev.target.closest("button");
+  if(!b) return;
+  if(b.dataset.hhbuy) buyGood(b.dataset.hhbuy);
+  if(b.dataset.hhfix) fixGood(b.dataset.hhfix);
+  if(b.dataset.hhcat){ hhCat = b.dataset.hhcat; renderHouse(); }
+});
+document.addEventListener("change", function(ev){
+  if(ev.target.id === "hhAt"){
+    S.hh.placedAt = ev.target.value || null;
+    const e = hhAtEstate();
+    log(e ? "살림을 <b>"+e.name+"</b> 에 설치했습니다 (임대료 ×"+hhGradeMul().toFixed(3)+")"
+          : "살림을 보관함으로 옮겼습니다");
+    save(); renderHouse();
+  }
+});
 /* ==== [F4:살림살이] JS 끝 ==== */
 
 /* ==== [F5:월정산] JS 시작 ==== */
