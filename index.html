@@ -320,8 +320,8 @@ select{font:inherit;font-size:12px;background:#21262d;color:var(--txt);
       <div class="row"><span>가상 인물이 보유한 매물</span><b id="reHeld">—</b></div>
       <div id="reHeldList" class="sub"></div>
       <div id="reFilters">
-        <select id="reArea"><option>지역 전체</option><option>서울</option><option>경기</option><option>부산</option><option>제주</option></select>
-        <select id="reUse"><option>용도 전체</option><option>주거</option><option>오피스</option><option>상가</option><option>토지</option></select>
+        <select id="reArea"><option>지역 전체</option></select>
+        <select id="reUse"><option>용도 전체</option></select>
         <label><input type="checkbox" id="reAfford"> 살 수 있는 것만</label>
       </div>
       <div id="reList"></div>
@@ -1564,23 +1564,54 @@ const BROKER  = 0.005;   // 중개수수료 0.5% — 중개사 자격이 있으�
 // 비싼 집은 임대료가 아니라 시세로 버는 자산이라 현금흐름이 거의 남지 않는다.
 // 그래서 임대만으로 부자가 되는 길은 막혀 있고, 이건 균형 조정이 아니라 현실 그대로다.
 const EOK = 100;
+// ── 새 매물을 추가하려면 이 배열에 한 줄만 더한다 ──────────────
+// 개수나 정렬 순서에 기대는 코드는 없다. 보기 좋으라고 시세 순으로 뒀을 뿐이다.
+//   · 지역·용도 드롭다운은 이 데이터에서 자동으로 만들어진다 (initEstateFilters)
+//   · LTV 는 고정 앵커로 계산하므로(LTV_REAL_LO/HI) 범위 밖 매물을 넣어도
+//     기존 매물의 담보 비율이 흔들리지 않는다 — 벗어난 값은 clamp 된다
+//   · 새 `use`(용도)를 만들면 세 곳에 한 줄씩 등록한다. 안 해도 기본값으로 동작한다:
+//       RATE_BY_USE(담보금리 · 기본 RATE_DEF) · LTV_ADJ_BY_USE(담보 조정 · 기본 0)
+//       TAX_YR_BY_USE(F5 보유세 · 기본 TAX_YR_DEF)
+//   · F3 채굴 인프라는 kw(수용 전력)·cool(냉각)만 읽는다. 토지는 kw:0 이라 배치가 막힌다
 const ESTATES = [
   { id:"oneroom",   name:"원룸",              area:"부산 사하",   use:"주거",   py:8,
     real:0.8,  yrPct:0.060, feePy:0.8,  kw:0.3, cool:1.15 },
+  { id:"villa_dg",  name:"대구 다세대",       area:"대구 달서",   use:"주거",   py:14,
+    real:1.2,  yrPct:0.056, feePy:0.7,  kw:0.4, cool:1.14 },
+  { id:"apt_ic",    name:"인천 구축아파트",   area:"인천 부평",   use:"주거",   py:18,
+    real:1.8,  yrPct:0.052, feePy:0.8,  kw:0.5, cool:1.12 },
   { id:"officetel", name:"오피스텔",          area:"서울 금천",   use:"주거",   py:12,
     real:2.2,  yrPct:0.050, feePy:1.0,  kw:0.6, cool:1.10 },
+  { id:"store_gp",  name:"김포 창고형 점포",  area:"경기 김포",   use:"상가",   py:40,
+    real:2.8,  yrPct:0.055, feePy:0.4,  kw:6,   cool:0.95 },
+  { id:"apt_gj",    name:"광주 아파트",       area:"광주 서구",   use:"주거",   py:26,
+    real:3.6,  yrPct:0.044, feePy:0.7,  kw:0.8, cool:1.10 },
   { id:"villa_hd",  name:"해운대 빌라",       area:"부산 해운대", use:"주거",   py:24,
     real:4.5,  yrPct:0.038, feePy:0.7,  kw:0.9, cool:1.08 },
+  { id:"shop_dj",   name:"대전 상가주택",     area:"대전 유성",   use:"상가",   py:30,
+    real:5.2,  yrPct:0.050, feePy:0.6,  kw:2.0, cool:1.02 },
   { id:"apt_suwon", name:"수원 아파트",       area:"경기 수원",   use:"주거",   py:32,
     real:6.5,  yrPct:0.028, feePy:0.8,  kw:1.2, cool:1.05 },
+  { id:"apt_sj",    name:"세종 아파트",       area:"세종 도담",   use:"주거",   py:34,
+    real:7.8,  yrPct:0.026, feePy:0.9,  kw:1.3, cool:1.04 },
+  { id:"gw_land",   name:"평창 임야",         area:"강원 평창",   use:"토지",   py:200,
+    real:9.0,  yrPct:0.012, feePy:0.05, kw:0,   cool:1.00 },
   { id:"apt_gwanak",name:"관악 우성아파트",   area:"서울 관악",   use:"주거",   py:30,
     real:11.5, yrPct:0.024, feePy:0.8,  kw:1.1, cool:1.05 },
   { id:"jeju_land", name:"제주 토지",         area:"제주 서귀포", use:"토지",   py:300,
     real:15.0, yrPct:0.010, feePy:0.05, kw:0,   cool:1.00 },
+  { id:"knw_guro",  name:"구로 지식산업센터", area:"서울 구로",   use:"오피스", py:45,
+    real:16.5, yrPct:0.046, feePy:1.2,  kw:9,   cool:0.88 },
   { id:"shop_mapo", name:"마포 상가",         area:"서울 마포",   use:"상가",   py:20,
     real:18.0, yrPct:0.045, feePy:1.0,  kw:3.0, cool:1.00 },
+  { id:"shop_ss",   name:"성수 근린상가",     area:"서울 성수",   use:"상가",   py:35,
+    real:22.0, yrPct:0.040, feePy:1.1,  kw:5.0, cool:0.98 },
+  { id:"office_pg", name:"판교 오피스",       area:"경기 성남",   use:"오피스", py:50,
+    real:26.0, yrPct:0.044, feePy:1.4,  kw:11,  cool:0.86 },
   { id:"office_ydp",name:"여의도 오피스",     area:"서울 여의도", use:"오피스", py:60,
     real:30.0, yrPct:0.043, feePy:1.5,  kw:12,  cool:0.85 },
+  { id:"resi_ys",   name:"용산 주상복합",     area:"서울 용산",   use:"주거",   py:45,
+    real:34.0, yrPct:0.020, feePy:1.8,  kw:7,   cool:0.82 },
   { id:"tower_palace", name:"타워팰리스",     area:"서울 도곡",   use:"주거",   py:50,
     real:39.0, yrPct:0.018, feePy:2.0,  kw:8,   cool:0.80 }
 ];
@@ -1633,10 +1664,11 @@ const MARGIN_LOG  = 1.0;   // 자동 상환 누적이 이만큼 쌓이면 로그
 // 주거용은 담보 가치가 명확하고 유동성이 높아 싸고, 토지는 잘 안 팔려 비싸다.
 // 실제 담보대출 금리 구조와 같은 방향이다.
 const RATE_BY_USE = { "주거":0.025, "오피스":0.040, "상가":0.055, "토지":0.070 };
+const RATE_DEF = 0.05;     // 표에 없는 용도의 기본 금리 — 새 용도를 등록하지 않아도 동작한다
 const RATE_MIN = 0.02, RATE_MAX = 0.07;
 
 function estRate(e){
-  let r = RATE_BY_USE[e.use] !== undefined ? RATE_BY_USE[e.use] : 0.05;
+  let r = RATE_BY_USE[e.use] !== undefined ? RATE_BY_USE[e.use] : RATE_DEF;
   if(e.real < 3) r += 0.005;        // 소액 담보는 금리가 조금 높다 (실제와 같다)
   return clamp(r, RATE_MIN, RATE_MAX);
 }
@@ -1660,9 +1692,10 @@ const CREDIT_MAX_RATE = 0.09, CREDIT_MIN_RATE = 0.01;
 function creditScore(){
   if(typeof S.job === "undefined") return 0;
   let s = 0;
-  // 직업 — 소득의 안정성 (최대 35점)
-  const rank = { parttime:8, sme:18, realtor:20, civil:30, corp:30, exec:35 };
-  s += S.job.id ? (rank[S.job.id] !== undefined ? rank[S.job.id] : 10) : 0;
+  // 직업 — 소득의 안정성 (최대 35점).
+  // 등급표를 여기 두면 직업을 추가할 때마다 두 곳을 고쳐야 한다.
+  // 등급은 JOBS 각 행의 `tier` 가 들고 있고, F8 이 함수로 노출한다 (계약 §5 패턴).
+  s += typeof jobCreditTier === "function" ? jobCreditTier(S.job.id) : 0;
   s += Math.min(S.job.months / 60, 1) * 20;          // 근속 5년에 만점 (최대 20)
   s += S.job.edu * 7.5;                               // 학력 단계 (최대 15)
   s += Math.min(S.job.certs.length * 5, 10);          // 자격 (최대 10)
@@ -1675,18 +1708,29 @@ const creditCap  = () => CREDIT_MIN_CAP + creditScore()/100 * (CREDIT_MAX_CAP - 
 const creditRate = () => CREDIT_MAX_RATE - creditScore()/100 * (CREDIT_MAX_RATE - CREDIT_MIN_RATE);
 const creditRoom = () => Math.max(0, creditCap() - S.loan.credit);
 
+// LTV 범위의 기준은 **배열의 양 끝이 아니라 고정값**이다.
+// 전에는 ESTATES[0] 과 마지막 항목을 읽었다. 그러면 매물을 하나 추가할 때마다
+// 기존 매물의 담보 비율이 통째로 밀린다 — 80억짜리를 넣으면 타워팰리스가
+// 30% → 51% 로 뛴다. 앵커를 고정하면 범위 밖 매물은 clamp 로 끝나고 균형은 그대로다.
+const LTV_REAL_LO = 0.8;    // 이 시세(억원) 이하는 전부 LTV_HI
+const LTV_REAL_HI = 39.0;   // 이 시세 이상은 전부 LTV_LO
+// 용도별 담보 조정 — 표에 없는 용도는 0 (조정 없음)
+const LTV_ADJ_BY_USE = { "토지":-0.10, "상가":-0.05 };
+
 function estLtv(e){
-  const lo = ESTATES[0].real, hi = ESTATES[ESTATES.length-1].real;
-  let v = LTV_HI - (e.real - lo) / (hi - lo) * (LTV_HI - LTV_LO);
-  if(e.use === "토지") v -= 0.10;   // 토지는 담보로 덜 인정된다
-  if(e.use === "상가") v -= 0.05;
+  const t = clamp((e.real - LTV_REAL_LO) / (LTV_REAL_HI - LTV_REAL_LO), 0, 1);
+  let v = LTV_HI - t * (LTV_HI - LTV_LO);
+  v += LTV_ADJ_BY_USE[e.use] !== undefined ? LTV_ADJ_BY_USE[e.use] : 0;
   return clamp(v, LTV_LO, LTV_HI);
 }
 
-// 소득 증빙 보너스 — PRD 에 적어 둔 F8 연결 고리다 (대기업·공무원·임원)
+// 소득 증빙 보너스 — PRD 에 적어 둔 F8 연결 고리다.
+// 전에는 ["corp","civil","exec"] 를 여기 적어 뒀는데, 직업을 추가할 때마다 이 줄을
+// 같이 고쳐야 하는 걸 잊기 쉬웠다 (잊으면 새 직업은 영영 증빙이 안 된다).
+// 이제 판단 근거는 JOBS 각 행의 `proof` 다 — 직업 표에 한 줄 넣으면 끝난다.
 function loanJobBonus(){
   if(typeof S.job === "undefined" || !S.job.id) return 0;
-  return ["corp","civil","exec"].indexOf(S.job.id) >= 0 ? LOAN_JOB_BONUS : 0;
+  return (typeof jobHasProof === "function" && jobHasProof(S.job.id)) ? LOAN_JOB_BONUS : 0;
 }
 // 대출 한도 = 보유 부동산의 (현재 시세 × LTV) 합계 × (1 + 소득 보너스)
 function loanCap(){
@@ -1988,6 +2032,22 @@ function renderLoan(){
   document.querySelectorAll("[data-borrow]").forEach(function(b){ b.disabled = loanRoom() <= KSK_MIN; });
   document.querySelectorAll("[data-repay]").forEach(function(b){ b.disabled = S.loan.debt <= KSK_MIN; });
 }
+// 지역·용도 드롭다운은 ESTATES 에서 만든다 — 매물을 추가해도 여기를 고칠 일이 없다.
+// "서울 관악" 처럼 앞말이 시·도이고, 필터는 앞말로 시작하는지를 본다.
+function initEstateFilters(){
+  const areaSel = $("reArea"), useSel = $("reUse");
+  if(!areaSel || !useSel) return;
+  const areas = [], uses = [];
+  ESTATES.forEach(function(e){
+    const a = e.area.split(" ")[0];
+    if(areas.indexOf(a) < 0) areas.push(a);
+    if(uses.indexOf(e.use) < 0) uses.push(e.use);
+  });
+  areas.forEach(function(a){ areaSel.appendChild(new Option(a, a)); });
+  uses.forEach(function(u){ useSel.appendChild(new Option(u, u)); });
+}
+initEstateFilters();
+
 renderHooks.push(renderLoan);
 renderHooks.push(renderEstates);
 
@@ -2662,19 +2722,33 @@ const TENURE_CAP = 120;      // 승진 보정이 최대(+50%)에 닿는 근속 �
 const AGENCY_FEE = 20.0;     // 중개사무소 개업 비용 (2,000만원)
 const AGENCY_PAY = 5.0;      // 개업 기본 수입 (500만원 · 부동산 시세 배수를 곱한다)
 
+// ── 새 직업을 추가하려면 이 배열에 한 줄만 더한다 ──────────────
+// 직업 한 줄이 **자기 규칙을 전부 들고 있다.** 다른 곳에 id 를 적을 일이 없다.
+//   pay      월급 (KSK) · hours 주간 근무시간 · odds 합격 확률
+//   needEdu  필요 학력 단계 (0·1·2) · needCert 필요 자격 id 또는 null
+//   tier     신용 점수 등급 0~35 — F2 의 creditScore 가 jobCreditTier() 로 읽어 간다
+//   proof    소득 증빙 — 담보대출 한도 +20% (F2 의 loanJobBonus)
+//   mkt      경기 연동 — 월수입에 부동산 시세 배수를 곱한다 (자영업처럼 경기를 타는 일)
+// tier 를 빠뜨리면 JOB_TIER_DEF, proof·mkt 를 빠뜨리면 없는 것으로 동작한다.
 const JOBS = [
-  { id:"parttime", name:"편의점 알바",   pay:1.2,  hours:20, needEdu:0, needCert:null,        odds:0.95 },
-  { id:"sme",      name:"중소기업 사원", pay:3.0,  hours:40, needEdu:0, needCert:null,        odds:0.60 },
-  { id:"realtor",  name:"부동산 중개사", pay:3.5,  hours:40, needEdu:0, needCert:"realtor",   odds:0.90 },
-  { id:"civil",    name:"공무원",       pay:4.5,  hours:40, needEdu:1, needCert:"civilexam", odds:0.50 },
-  { id:"corp",     name:"대기업 사원",   pay:7.0,  hours:45, needEdu:1, needCert:null,        odds:0.35 },
-  { id:"exec",     name:"대기업 임원",   pay:16.0, hours:55, needEdu:2, needCert:null,        odds:0.15 }
+  { id:"parttime", name:"편의점 알바",     pay:1.2,  hours:20, needEdu:0, needCert:null,        odds:0.95, tier:8  },
+  { id:"sme",      name:"중소기업 사원",   pay:3.0,  hours:40, needEdu:0, needCert:null,        odds:0.60, tier:18 },
+  { id:"realtor",  name:"부동산 중개사",   pay:3.5,  hours:40, needEdu:0, needCert:"realtor",   odds:0.90, tier:20 },
+  { id:"selfemp",  name:"자영업자",        pay:4.0,  hours:60, needEdu:0, needCert:null,        odds:0.80, tier:14, mkt:true },
+  { id:"civil",    name:"공무원",          pay:4.5,  hours:40, needEdu:1, needCert:"civilexam", odds:0.50, tier:30, proof:true },
+  { id:"freelance",name:"프리랜서 개발자", pay:5.5,  hours:35, needEdu:1, needCert:null,        odds:0.45, tier:16 },
+  { id:"corp",     name:"대기업 사원",     pay:7.0,  hours:45, needEdu:1, needCert:null,        odds:0.35, tier:30, proof:true },
+  { id:"senior",   name:"고위공직자",      pay:9.0,  hours:50, needEdu:2, needCert:"civilexam", odds:0.12, tier:34, proof:true },
+  { id:"lawyer",   name:"변호사",          pay:14.0, hours:50, needEdu:2, needCert:"barexam",   odds:0.30, tier:35, proof:true },
+  { id:"exec",     name:"대기업 임원",     pay:16.0, hours:55, needEdu:2, needCert:null,        odds:0.15, tier:35, proof:true }
 ];
+const JOB_TIER_DEF = 10;   // tier 를 안 적은 직업의 신용 등급 (전과 같은 기본값)
 
 // edu > 0 이면 합격 시 학력 단계가 그 값으로 오른다
 const CERTS = [
   { id:"realtor",   name:"부동산 중개사 시험", fee:2.0,   months:3,  odds:0.55, needEdu:0, edu:0 },
   { id:"civilexam", name:"공무원 시험",       fee:1.5,   months:6,  odds:0.30, needEdu:0, edu:0 },
+  { id:"barexam",   name:"변호사 시험",       fee:8.0,   months:18, odds:0.20, needEdu:2, edu:0 },
   { id:"degree",    name:"학사 학위",         fee:30.0,  months:12, odds:0.90, needEdu:0, edu:1 },
   { id:"master",    name:"석사 학위",         fee:50.0,  months:12, odds:0.85, needEdu:1, edu:2 }
 ];
@@ -2684,6 +2758,17 @@ const certFind = id => CERTS.find(function(c){ return c.id === id; });
 
 // 계약 §5 — F2 가 이 이름 그대로 불러 중개수수료 면제를 판단한다. 바꾸지 않는다.
 function jobHasCert(id){ return S.job.certs.indexOf(id) >= 0; }
+
+// 계약 §5 — F2 의 creditScore·loanJobBonus 가 이 이름으로 읽어 간다. 바꾸지 않는다.
+// 직업별 값을 F2 에 복사해 두지 않으려고 만든 창구다 — 직업 표가 유일한 출처다.
+function jobCreditTier(id){
+  const j = id ? jobFind(id) : null;
+  return j ? (j.tier !== undefined ? j.tier : JOB_TIER_DEF) : 0;
+}
+function jobHasProof(id){
+  const j = id ? jobFind(id) : null;
+  return !!(j && j.proof);
+}
 
 const jobNow = () => S.job.id ? jobFind(S.job.id) : null;
 
@@ -2700,7 +2785,10 @@ function payNow(){
   const j = jobNow();
   if(!j) return 0;
   if(S.job.agency && j.id === "realtor") return AGENCY_PAY * S.re.mkt * tenureMul();
-  return j.pay * tenureMul();
+  // 경기를 타는 직업(자영업)은 부동산 시세 배수를 그대로 받는다 —
+  // 경기가 좋으면 더 벌고 나쁘면 덜 번다. 월급쟁이와 달리 방어선이 되지 못한다.
+  const mkt = (j.mkt && S.re) ? S.re.mkt : 1;
+  return j.pay * mkt * tenureMul();
 }
 const jobPayPerSec = () => cost(payNow() / MONTH_HOURS);
 
